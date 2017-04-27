@@ -19,6 +19,7 @@ var missileCooldown = 5;
 var enginesPower = 1;
 var engineCoolingRate = 0.5;
 var engineHeatingRate = 1;
+var missileLiveTime = 5;
 
 
 
@@ -387,7 +388,7 @@ ship.prototype.fireMissile = function(){
 
 ship.prototype.hitByMissile = function(){
     for (j = 0; j < missiles.length; j++){
-        if(missiles[j].living == 20){
+        if(missiles[j].living == missileLiveTime){
             var dist = this.pos.plus(missiles[j].pos.op());
             dist = dist.Vlength();
             if (dist < 27){
@@ -459,7 +460,7 @@ missile.prototype.takeStep = function(){
         this.crashed = true;
     }
     this.leaveScreen();
-    if (this.living < 20){
+    if (this.living < missileLiveTime){
         this.living += 1;
     }
 }
