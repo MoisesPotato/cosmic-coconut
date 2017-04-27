@@ -12,7 +12,7 @@ var then;
 var PlayerOne;
 var scene = "start";
 var missiles = [];
-var projectileSpeed = 10;
+var projectileSpeed = 20;
 var explosionLength = 15;
 var overheatTemp = 20;
 var missileCooldown = 5;
@@ -40,6 +40,16 @@ var imageShipOverheating2 = new Image();  //Image of ship
 imageShipOverheating2.src = 'ShipOverheating2.png';
 var imageExplosion = new Image();  //Image of ship
 imageExplosion.src = 'Explosion1.png';
+var imageShipNoFireBlue = new Image();  //Image of ship
+imageShipNoFireBlue.src = 'ShipNoFire_blue.png';
+var imageShipFireBlue = new Image();  //Image of ship
+imageShipFireBlue.src = 'ShipFire_blue.png';
+var imageShipFireAltBlue = new Image();  //Image of ship
+imageShipFireAltBlue.src = 'ShipFire2_blue.png';
+var imageShipOverheating1Blue = new Image();  //Image of ship
+imageShipOverheating1Blue.src = 'ShipOverheating1_blue.png';
+var imageShipOverheating2Blue = new Image();  //Image of ship
+imageShipOverheating2Blue.src = 'ShipOverheating2_blue.png';
 
 
 function vec(x,y){   ///Vector operations   ////////////////////////
@@ -106,7 +116,7 @@ var dKey = 68;
 var wKey = 87;
 
 var p1Keys = new keySet(leftKey, rightKey, upKey, rShift);
-var p1Keys = new keySet(aKey, dKey, wKey, spaceBar);
+var p2Keys = new keySet(aKey, dKey, wKey, spaceBar);
 
 
 var keysList = [];         // At any given point, keysList[leftKey] should be a Boolean saying if the left key is pressed
@@ -242,14 +252,13 @@ flyingThing.prototype.checkCollision = function(){
 ////////////////// THE OBJECT FOR SHIPS ///////////////
 
 
-function ship(pos, color, keyScheme){
+function ship(pos, whichPlayer, facing, keyScheme){
     flyingThing.call(this, pos, null);
     this.enginePower = new vec(0, -enginesPower);
-    this.facing = 0;
+    this.facing = facing;
     this.orbiting = true;
     this.crashed = false;
     this.exploding = false;
-    this.color = color;
     this.angularspeed = 0;
     this.firestate = 0;
     this.engineTemp = 0;
@@ -257,6 +266,7 @@ function ship(pos, color, keyScheme){
     this.coolDownTimer = 0;
     this.keyScheme = keyScheme;
     this.hitbox = new hitboxClass(15, 21, 9);
+    this.whichPlayer = whichPlayer;
 }
 
 
@@ -308,18 +318,38 @@ ship.prototype.draw = function(){
         if (this.overheat){
             this.firestate = (this.firestate+1) % 6;
             if (this.firestate < 4){
-                placeRotated(imageShipOverheating1, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                if (this.whichPlayer == 1){
+                    placeRotated(imageShipOverheating1, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                } else {
+                    placeRotated(imageShipOverheating1Blue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                }
             } else {
-                placeRotated(imageShipOverheating2, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                if (this.whichPlayer == 1){
+                    placeRotated(imageShipOverheating2, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                } else {
+                    placeRotated(imageShipOverheating2Blue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                }
             }
         } else if (!keysList[this.keyScheme.thrust]){
-            placeRotated(imageShipNoFire, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+            if (this.whichPlayer == 1){
+                    placeRotated(imageShipNoFire, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                } else {
+                    placeRotated(imageShipNoFireBlue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                }
         } else {
             this.firestate = (this.firestate+1) % 6;
             if (this.firestate < 3){
-                placeRotated(imageShipFire, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                if (this.whichPlayer == 1){
+                    placeRotated(imageShipFire, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                } else {
+                    placeRotated(imageShipFireBlue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                }
             } else {
-                placeRotated(imageShipFireAlt, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                if (this.whichPlayer == 1){
+                    placeRotated(imageShipFireAlt, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                } else {
+                    placeRotated(imageShipFireAltBlue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                }
             }
         }
     } else {
@@ -357,7 +387,7 @@ ship.prototype.fireMissile = function(){
 
 ship.prototype.hitByMissile = function(){
     for (j = 0; j < missiles.length; j++){
-        if(missiles[j].living == 50){
+        if(missiles[j].living == 20){
             var dist = this.pos.plus(missiles[j].pos.op());
             dist = dist.Vlength();
             if (dist < 27){
@@ -379,6 +409,11 @@ ship.prototype.hitByMissile = function(){
 }
 
 ship.prototype.drawTempBar = function(){
+    if (this.whichPlayer == 1){
+        var xPosition = 10;
+    } else {
+        var xPosition = gameWidth-110;
+    }
     var rate = this.engineTemp/overheatTemp;
     if (rate > 0.8 || this.overheat){
         ctx.fillStyle = "#FF0000";
@@ -388,8 +423,8 @@ ship.prototype.drawTempBar = function(){
         ctx.fillStyle = "#00DD00";
     }
     ctx.strokeStyle = "#FFFFFF";
-    ctx.strokeRect(10,10,100,10);
-    ctx.fillRect(10,10,100* rate,10);
+    ctx.strokeRect(xPosition,10,100,10);
+    ctx.fillRect(xPosition,10,100* rate,10);
     ctx.strokeStyle = "#000000";
 }
 
@@ -424,7 +459,7 @@ missile.prototype.takeStep = function(){
         this.crashed = true;
     }
     this.leaveScreen();
-    if (this.living < 50){
+    if (this.living < 20){
         this.living += 1;
     }
 }
@@ -457,12 +492,15 @@ function playAnim(){
         then = Date.now();
         drawBackground();
         PlayerOne.takeStep();
+        PlayerTwo.takeStep();
         PlayerOne.draw();
-        if (PlayerOne.crashed){
+        PlayerTwo.draw();
+        if (PlayerOne.crashed || PlayerTwo.crashed){
             playing = false;
         }
         PlayerOne.fireMissile();
-        for (var m = 0; m< missiles.length; m++){
+        PlayerTwo.fireMissile();
+        for (var m = 0; m < missiles.length; m++){
             missiles[m].takeStep();
             missiles[m].draw();
             if (missiles[m].crashed){
@@ -483,8 +521,10 @@ function startTheGame(){
     getBackground(100);
     drawBackground();
     missiles = [];
-    PlayerOne = new ship(new vec(150,300), "red", p1Keys);
+    PlayerOne = new ship(new vec(150,300), 1, 0, p1Keys);
+    PlayerTwo = new ship(new vec(650,300), 2, Math.PI, p2Keys);
     PlayerOne.setAngularSpeed();
+    PlayerTwo.setAngularSpeed();
     playing = true;
     then = Date.now();
     scene = "start";
@@ -494,7 +534,7 @@ function startTheGame(){
 startTheGame();
 
 /*
-WEAPONS:
+WEAPONS IDEAS:
 Missile
 Guided missile
 Mine
