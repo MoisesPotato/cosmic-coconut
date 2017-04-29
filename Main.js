@@ -608,7 +608,7 @@ function showMenu(){
 }
 
 //startTheGame();
-showMenu();
+window.onload = showMenu();
 
 
 /*
