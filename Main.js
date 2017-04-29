@@ -1,17 +1,19 @@
-var gameWidth = 800;
-var gameHeight = 600;
-var bgColor = "#000000";
-var starColor = "#FFFFFF";
-var earthColor = "blue";
-var G = 20000;
-var dt = 0.5; //Changing this is a mess. Most of the speed is measured in framses anyway
-var rotationSpeed = 0.2;
-var earthRadius = 75;
-var mode = "Torus";
-var then;
-var PlayerOne;
-var scene = "start";
-var missiles = [];
+var gameWidth = 800;    //Width of game zone in pixels
+var gameHeight = 600;   //Height of game zone in pixels
+var bgColor = "#000000";  //Color of the sky backdrop
+var starColor = "#FFFFFF";  //Color of the background stars
+var earthColor = "blue";   //Color of the planet in the middle
+var G = 20000;             //strength of gravity
+var dt = 0.5;               //Changing this is a mess. Most of the speed is measured in framses anyway
+var rotationSpeed = 0.2;    //Speed at which ships rotate when you press keys
+var earthRadius = 75;       //Size of planet inside
+var mode = "Torus";         //Universe is a torus. Only mode for now
+var then;                   //Time of last animation frame
+var PlayerOne;              //Player ship
+var PlayerTwo;              //Player ship
+var scene = "menu";        //Scene: possibilities: "start", "GameOver", "menu"
+var winner = "none";        //Winner of the last game
+var missiles = [];          
 var projectileSpeed = 20;
 var explosionLength = 15;
 var overheatTemp = 20;
@@ -20,6 +22,8 @@ var enginesPower = 1;
 var engineCoolingRate = 0.5;
 var engineHeatingRate = 1;
 var missileLiveTime = 5;
+var missileTempIncrease = 5;
+var score = [0,0];
 
 
 
@@ -114,7 +118,9 @@ var spaceBar = 32;
 var rShift = 16;
 var aKey = 65;
 var dKey = 68;
+var sKey = 83;
 var wKey = 87;
+var mKey = 77;
 
 var p1Keys = new keySet(leftKey, rightKey, upKey, rShift);
 var p2Keys = new keySet(aKey, dKey, wKey, spaceBar);
@@ -130,6 +136,13 @@ window.onkeydown = function(e) {keysList[e.keyCode]=true;
 window.onkeypress = function(){
     if(scene =="GameOver"){
         if (keysList[rKey]){
+            startTheGame();
+        } else if (keysList[mKey]){
+            showMenu();
+        }
+    }
+    if (scene =="menu"){
+        if (keysList[sKey]){
             startTheGame();
         }
     }
@@ -375,12 +388,16 @@ ship.prototype.rotate = function(){
 
 
 ship.prototype.fireMissile = function(){
-    if(keysList[this.keyScheme.fire] && this.coolDownTimer == 0){
+    if(keysList[this.keyScheme.fire] && this.coolDownTimer == 0 && !this.overheat){
         var outSpeed = new vec(0, -projectileSpeed);
         outSpeed = outSpeed.rot(this.facing);
         outSpeed = outSpeed.plus(this.vel);
-        missiles.push(new missile(this.pos, outSpeed));
+        missiles.push(new missile(this.pos, outSpeed, this.whichPlayer));
         this.coolDownTimer = missileCooldown;
+        this.engineTemp = Math.min(overheatTemp, this.engineTemp + missileTempIncrease);
+        if (this.engineTemp == overheatTemp){
+                this.overheat = true;
+            }
     } else {
         this.coolDownTimer = Math.max(0, this.coolDownTimer - 1);
     }  
@@ -388,7 +405,7 @@ ship.prototype.fireMissile = function(){
 
 ship.prototype.hitByMissile = function(){
     for (j = 0; j < missiles.length; j++){
-        if(missiles[j].living == missileLiveTime){
+        if(missiles[j].living == missileLiveTime || missiles[j].firedBy != this.whichPlayer){
             var dist = this.pos.plus(missiles[j].pos.op());
             dist = dist.Vlength();
             if (dist < 27){
@@ -436,10 +453,11 @@ ship.prototype.drawHitbox = function(){
 ////////////////// THE OBJECT FOR MISSILES ///////////////
 
 
-function missile(pos, vel){
+function missile(pos, vel, who){
     flyingThing.call(this, pos, vel);
     this.crashed = false;
     this.living = 0;
+    this.firedBy = who;
 }
 
 
@@ -449,7 +467,11 @@ missile.prototype.constructor = missile;
 missile.prototype.draw = function(){
     ctx.beginPath();
     ctx.arc(this.pos.x, this.pos.y, 3, 0, 2 * Math.PI);
-    ctx.fillStyle = "red";
+    if (this.firedBy ==1){
+        ctx.fillStyle = "red";
+    } else {
+        ctx.fillStyle = "#00FF00";
+    }
     ctx.fill();
     ctx.stroke();
 }
@@ -478,13 +500,25 @@ function ScreenOfRestarting(){
 };
 
 function gameOver(){
+    scene = "GameOver";
     drawBackground();
-    ctx.font = "20px Arial Black";
-    ctx.fillStyle = "red";
+    ctx.font = "30px Monoton";
     ctx.textAlign = "center";
-    ctx.fillText("You crashed and the game isn't even made yet", gameWidth/2, gameHeight/2); 
+    if (winner == "none"){
+        ctx.fillStyle = "red";
+        ctx.fillText("You both lose", gameWidth/2, gameHeight/2);
+    } else if (winner == "P1") {
+        ctx.fillStyle = "yellow";
+        ctx.fillText("Player one wins", gameWidth/2, gameHeight/2);
+        score[0]++;
+    } else {
+        ctx.fillStyle = "turquoise";
+        ctx.fillText("Player two wins", gameWidth/2, gameHeight/2);
+        score[1]++;
+    }
     ctx.fillText("Press R to restart", gameWidth/2, gameHeight*3/4); 
-    ScreenOfRestarting();
+    ctx.fillText("Press M to go to the Menu", gameWidth/2, gameHeight*3/4+60);
+    showScore();
 };
 
 function playAnim(){
@@ -492,12 +526,19 @@ function playAnim(){
     if (currTime - then > 40 && playing){        
         then = Date.now();
         drawBackground();
+        showScore();
         PlayerOne.takeStep();
         PlayerTwo.takeStep();
         PlayerOne.draw();
         PlayerTwo.draw();
         if (PlayerOne.crashed || PlayerTwo.crashed){
             playing = false;
+            winner = "none";
+            if (!PlayerOne.crashed){
+                winner = "P1";
+            } else if (!PlayerTwo.crashed){
+                winner = "P2";
+            }
         }
         PlayerOne.fireMissile();
         PlayerTwo.fireMissile();
@@ -508,9 +549,13 @@ function playAnim(){
                 missiles.splice(m, 1);
             }
         }
-        window.requestAnimationFrame(playAnim);
-    } else { 
-        window.requestAnimationFrame(playAnim);
+        if (playing){
+            window.requestAnimationFrame(playAnim);
+        }
+    } else {
+        if (playing){
+            window.requestAnimationFrame(playAnim);
+        }
     }
     if (!playing){
         gameOver();
@@ -522,8 +567,8 @@ function startTheGame(){
     getBackground(100);
     drawBackground();
     missiles = [];
-    PlayerOne = new ship(new vec(150,300), 1, 0, p1Keys);
-    PlayerTwo = new ship(new vec(650,300), 2, Math.PI, p2Keys);
+    PlayerOne = new ship(new vec(150,300), 1, Math.PI, p1Keys);
+    PlayerTwo = new ship(new vec(650,300), 2, 0, p2Keys);
     PlayerOne.setAngularSpeed();
     PlayerTwo.setAngularSpeed();
     playing = true;
@@ -532,9 +577,47 @@ function startTheGame(){
     playAnim();
 };
 
-startTheGame();
+function showScore(){
+    ctx.font = "20px Bungee Shade";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "yellow";
+    ctx.fillText(score[0], gameWidth/2-30, 25);
+    ctx.fillStyle = "turquoise";
+    ctx.fillText(score[1], gameWidth/2+30, 25);
+    ctx.fillStyle = "white";
+    ctx.fillText("-", gameWidth/2, 25);
+}
+
+function showMenu(){
+    ctx.fillStyle = "black";
+    ctx.fillRect(0,0,1000,1000);
+    scene = "menu";
+    starDisplay = [];
+    getBackground(50);
+    drawBackground();
+    if (Math.floor(Math.random()*2) > 0){
+        ctx.fillStyle = "turquoise";
+    } else {
+        ctx.fillStyle = "yellow";
+    }
+    ctx.font = "100px Faster One";
+    ctx.textAlign = "center";
+    ctx.fillText("SpaceWar!", gameWidth/2, gameHeight/2);
+    ctx.font = "40px Bungee Shade";
+    ctx.fillText("Press S to start", gameWidth/2, 3* gameHeight/4);
+}
+
+//startTheGame();
+showMenu();
+
 
 /*
+Add googly eyes to planet
+
+Start menu
+
+Am I sure about hitbox?
+
 WEAPONS IDEAS:
 Missile
 Guided missile
