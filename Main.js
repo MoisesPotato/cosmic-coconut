@@ -13,18 +13,25 @@ var PlayerOne;              //Player ship
 var PlayerTwo;              //Player ship
 var scene = "menu";        //Scene: possibilities: "start", "GameOver", "menu"
 var winner = "none";        //Winner of the last game
-var missiles = [];          
-var projectileSpeed = 20;
-var explosionLength = 15;
-var overheatTemp = 20;
-var missileCooldown = 5;
-var enginesPower = 1;
-var engineCoolingRate = 0.5;
-var engineHeatingRate = 1;
-var missileLiveTime = 5;
-var missileTempIncrease = 5;
-var score = [0,0];
-
+var missiles = [];          //Array storing all the flying missiles 
+var projectileSpeed = 20;   //Speed at which a missile is fired
+var explosionLength = 15;   //Time a ship spends exploding
+var overheatTemp = 20;      //Temperature at which a ship starts overheating
+var missileCooldown = 5;    //Min time between missiles
+var enginesPower = 1.5;       //Power of the ship engine
+var engineCoolingRate = 0.5;//Rate at which the engine cools by default
+var engineHeatingRate = 1.5;  //Rate at which the engine heats when thrust is on
+var missileLiveTime = 5;    //Time after which a missile can hit ship that fired it
+var missileTempIncrease = 8;//Temperature increase by firing a missiles
+var score = [0,0];          //Initial score
+var eyesChasing = 1;        //Who the eyes of the Earth are chasing
+var weaponTimer = 0;        //Time until a weapon spawns
+var minWeaponWaitTime = 30; //Minimum wait for a weapon 200 seems reasonable
+var maxWeaponWaitTime = 50;//Max wait for a weapon 500 seems reasonable
+var weaponTypes = ["Mine"];       //All the possible weapons
+var floatingBox = new presentBox(null);//The one possible weapon box
+var paused = false;
+var weaponsCurrent = [];    //Array that keeps track of weapons currently flying around
 
 
 var area = document.getElementById("gameZone");
@@ -55,6 +62,12 @@ var imageShipOverheating1Blue = new Image();  //Image of ship
 imageShipOverheating1Blue.src = 'ShipOverheating1_blue.png';
 var imageShipOverheating2Blue = new Image();  //Image of ship
 imageShipOverheating2Blue.src = 'ShipOverheating2_blue.png';
+var imageEarth = new Image();
+imageEarth.src = 'Planet.png';
+var imageBox = new Image();
+imageBox.src = 'Box.png';
+var imageMine = new Image();
+imageMine.src = 'Mine.png';
 
 
 function vec(x,y){   ///Vector operations   ////////////////////////
@@ -121,9 +134,10 @@ var dKey = 68;
 var sKey = 83;
 var wKey = 87;
 var mKey = 77;
+var pKey = 80;
 
-var p1Keys = new keySet(leftKey, rightKey, upKey, rShift);
-var p2Keys = new keySet(aKey, dKey, wKey, spaceBar);
+var p1Keys = new keySet(leftKey, rightKey, upKey, rShift, downKey);
+var p2Keys = new keySet(aKey, dKey, wKey, spaceBar, sKey);
 
 
 var keysList = [];         // At any given point, keysList[leftKey] should be a Boolean saying if the left key is pressed
@@ -146,13 +160,21 @@ window.onkeypress = function(){
             startTheGame();
         }
     }
+    if (scene =="start"){
+        if (keysList[pKey] && !paused){
+            pause();
+        } else if (keysList[pKey] && paused){
+            unPause();
+        }
+    }
 }
 
-function keySet(moveLeft, moveRight, thrust, fire){
+function keySet(moveLeft, moveRight, thrust, fire, special){
     this.moveLeft = moveLeft;
     this.moveRight = moveRight;
     this.thrust = thrust;
     this.fire = fire;
+    this.special = special;
 }
 
 
@@ -187,11 +209,37 @@ function drawBackground(){
         ctx.fill();
         ctx.stroke();
     }
-    ctx.beginPath();
+    /*ctx.beginPath();
     ctx.arc(O.x, O.y, earthRadius, 0, 2 * Math.PI); //draw Earth
     ctx.fillStyle = earthColor;
     ctx.fill();
+    ctx.stroke();*/
+    ctx.drawImage(imageEarth, O.x - earthRadius, O.y - earthRadius , 2*earthRadius, 2*earthRadius);
+}
+
+function drawEyes(){
+    ctx.fillStyle = "white";
+    ctx.strokeStyle = "black";
+    ctx.beginPath();
+    ctx.arc(O.x - 32, O.y - 30, 18, 0, 2 * Math.PI); //draw left Eye
+    ctx.fill();
     ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(O.x + 32, O.y - 30, 18, 0, 2 * Math.PI); //draw left Eye
+    ctx.fill();
+    ctx.stroke();
+    var direction = eyesChasing.pos.plus(O.op());
+    direction = direction.times(1/direction.Vlength()*6);
+    ctx.fillStyle = "black";
+    ctx.beginPath();
+    ctx.arc(O.x - 32 + direction.x, O.y - 30 + direction.y, 8, 0, 2 * Math.PI); //draw left Eye
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(O.x + 32 + direction.x, O.y - 30 + direction.y, 8, 0, 2 * Math.PI); //draw left Eye
+    ctx.fill();
+    ctx.stroke();
+    
 }
 
 ////////////////// THE CLASS FOR HITBOXES ///////////////
@@ -210,8 +258,11 @@ hitboxClass.prototype.collide = function(thing){
     }
 }
 
+hitboxClass.prototype.increase = function(r){
+    return new hitboxClass(this.front + r, this.back + r, this.sides + r)
+}
 
-////////////////// THE OBJECT FOR FLYING STUFFS ///////////////
+////////////////// THE CLASS FOR FLYING STUFFS ///////////////
 
 function flyingThing(pos, vel){
     this.pos = pos;
@@ -263,7 +314,137 @@ flyingThing.prototype.checkCollision = function(){
     }
 }
 
-////////////////// THE OBJECT FOR SHIPS ///////////////
+////////////////// THE CLASS FOR WEAPONS ///////////////
+function weapon(pos, vel, type, firedBy){
+    flyingThing.call(this, pos, vel);
+    this.type = type;
+    this.living = 0;
+    this.facing = 0;
+}
+
+weapon.prototype = Object.create(flyingThing.prototype);
+weapon.prototype.constructor = weapon;
+
+weapon.prototype.draw = function(){
+    switch (this.type){
+                case "Mine":
+                    this.facing += 0.03;
+                    placeRotated(imageMine, this.pos, this.facing, 26, 26, 13, 13);
+                    break;
+                default:
+                    break;
+            }
+}
+
+
+function dealWithWeapons(){
+    for (var w = 0; w < weaponsCurrent.length; w++){
+        var W = weaponsCurrent[w];
+            switch (W.type){
+                case "Mine":
+                    if (W.living < 10){
+                        W.living ++;
+                    } else {
+                        if (PlayerOne.easyCollide(W.pos, 10)){
+                            PlayerOne.orbiting = false;
+                            PlayerOne.engineTemp += overheatTemp/2;
+                            PlayerOne.vel = PlayerOne.vel.times(0.2);
+                            weaponsCurrent.splice(w, 1);
+                            w--;
+                        } else if (PlayerTwo.easyCollide(W.pos, 10)){
+                            PlayerTwo.orbiting = false;
+                            PlayerTwo.engineTemp += overheatTemp/2;
+                            PlayerTwo.vel = PlayerTwo.vel.times(0.2);
+                            weaponsCurrent.splice(w, 1);
+                            w--;
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+        W.draw();
+    }
+}
+
+function resetWeaponTimer(){
+    weaponTimer = Math.floor((minWeaponWaitTime-maxWeaponWaitTime)*Math.random()+minWeaponWaitTime);
+}
+
+function dealWithBoxes(){
+    if (!floatingBox.existing){
+        if(weaponTimer == 0){
+            floatingBox.spawn();
+        } else {
+            weaponTimer--;
+        } 
+    } else {
+//        console.log("Collision: "+PlayerTwo.hitboxEasy.collide(floatingBox.pos));
+//        console.log("Player Two: "+PlayerTwo.pos);
+        if (PlayerOne.easyCollide(floatingBox.pos, 12)){
+            floatingBox.open(PlayerOne);
+        } else if (PlayerTwo.easyCollide(floatingBox.pos, 12)){
+            floatingBox.open(PlayerTwo);
+        }
+    }
+}
+
+function randomWeapon(){
+    var num = weaponTypes.length;
+    return weaponTypes[Math.floor(Math.random()*num)];
+}
+
+
+////////////////////// CLASS FOR PRESENT BOXES ////////////
+function presentBox(pos){
+    flyingThing.call(this, pos, null);
+    this.existing = false;
+    this.timer = 0;
+    this.growing = true;
+}
+
+
+presentBox.prototype = Object.create(flyingThing.prototype);
+presentBox.prototype.constructor = presentBox;
+
+presentBox.prototype.spawn = function(){
+    this.pos = new vec(gameWidth * Math.random(), gameHeight * Math.random());
+    this.existing = true;
+    if (this.checkCollision()){
+        this.spawn();
+    }
+}
+
+
+
+presentBox.prototype.open = function(player){
+    resetWeaponTimer();
+    this.existing = false;
+    player.weapon = randomWeapon();
+}
+
+
+presentBox.prototype.draw = function(){
+    if (this.existing){
+        placeRotated(imageBox, this.pos, 0, 24+this.timer, 24+this.timer, 12+this.timer/2, 12+this.timer/2);
+    }
+    if (this.growing){  
+        if(this.timer < 3){
+        this.timer++;
+        } else {
+        this.growing = false;
+        }
+    } else {
+            if(this.timer > 0){
+            this.timer--;
+        } else {
+            this.growing = true;
+        }
+    }
+}
+
+
+////////////////// THE CLASS FOR SHIPS ///////////////
 
 
 function ship(pos, whichPlayer, facing, keyScheme){
@@ -280,7 +461,9 @@ function ship(pos, whichPlayer, facing, keyScheme){
     this.coolDownTimer = 0;
     this.keyScheme = keyScheme;
     this.hitbox = new hitboxClass(15, 21, 9);
+    this.hitboxEasy = new hitboxClass(18, 23, 14);
     this.whichPlayer = whichPlayer;
+    this.weapon = "none";
 }
 
 
@@ -317,6 +500,9 @@ ship.prototype.takeStep = function(){
             this.overheat = false;
         } else if (!this.overheat && this.engineTemp > overheatTemp){
             this.overheat = true;
+        }
+        if (keysList[this.keyScheme.special]){
+            this.fireWeapon();
         }
     } else if (this.firestate < explosionLength){
         this.firestate += 1;
@@ -406,10 +592,9 @@ ship.prototype.fireMissile = function(){
 ship.prototype.hitByMissile = function(){
     for (j = 0; j < missiles.length; j++){
         if(missiles[j].living == missileLiveTime || missiles[j].firedBy != this.whichPlayer){
-            var dist = this.pos.plus(missiles[j].pos.op());
-            dist = dist.Vlength();
+            var relPos = missiles[j].pos.plus(this.pos.op());
+            var dist = relPos.Vlength();
             if (dist < 27){
-                var relPos = missiles[j].pos.plus(this.pos.op());
                 relPos = relPos.rot(this.facing);
                 /*console.log("Position of missile is x = "+missiles[j].pos.x+", y = "+missiles[j].pos.y);
                 console.log("Position of player is x = "+this.pos.x+", y = "+this.pos.y);
@@ -420,9 +605,25 @@ ship.prototype.hitByMissile = function(){
                     //console.log("Hit!");
                     this.exploding = true;
                     missiles.splice(j, 1);
+                    j--;
                 }
             }
         }
+    }
+}
+
+ship.prototype.easyCollide = function(whatHit, size){ //Checks collision against thing. Uses easy hitbox. WhatHit is the position vector of the second object
+    var relPos = whatHit.plus(this.pos.op());
+    var dist = relPos.Vlength();
+    if (dist < 27+ size){
+        relPos = relPos.rot(this.facing);
+        /*console.log("Position of missile is x = "+missiles[j].pos.x+", y = "+missiles[j].pos.y);
+        console.log("Position of player is x = "+this.pos.x+", y = "+this.pos.y);
+        console.log("Player is facing "+this.facing);
+        console.log("relative position is = "+relPos.x+", y = "+relPos.y);*/
+        return this.hitbox.increase(size).collide(relPos);
+    } else{
+        return false;
     }
 }
 
@@ -450,7 +651,18 @@ ship.prototype.drawHitbox = function(){
     
 }
 
-////////////////// THE OBJECT FOR MISSILES ///////////////
+ship.prototype.fireWeapon = function(){
+    switch (this.weapon){
+        case "Mine":
+            weaponsCurrent.push(new weapon(this.pos, new vec(0, 0), "Mine", this.whichPlayer));
+            this.weapon = "none";
+            break;
+        default:
+            this.weapon = "none";
+    }
+}
+
+////////////////// THE CLASS FOR MISSILES ///////////////
 
 
 function missile(pos, vel, who){
@@ -487,6 +699,9 @@ missile.prototype.takeStep = function(){
     }
 }
 
+
+
+
 var playing = true;
 
 function ScreenOfRestarting(){
@@ -502,6 +717,7 @@ function ScreenOfRestarting(){
 function gameOver(){
     scene = "GameOver";
     drawBackground();
+    drawEyes();
     ctx.font = "30px Monoton";
     ctx.textAlign = "center";
     if (winner == "none"){
@@ -523,7 +739,7 @@ function gameOver(){
 
 function playAnim(){
     var currTime = Date.now();
-    if (currTime - then > 40 && playing){        
+    if (currTime - then > 40 && playing && !paused){        
         then = Date.now();
         drawBackground();
         showScore();
@@ -534,9 +750,9 @@ function playAnim(){
         if (PlayerOne.crashed || PlayerTwo.crashed){
             playing = false;
             winner = "none";
-            if (!PlayerOne.crashed){
+            if (!PlayerOne.exploding){
                 winner = "P1";
-            } else if (!PlayerTwo.crashed){
+            } else if (!PlayerTwo.exploding){
                 winner = "P2";
             }
         }
@@ -547,13 +763,18 @@ function playAnim(){
             missiles[m].draw();
             if (missiles[m].crashed){
                 missiles.splice(m, 1);
+                m--;
             }
         }
-        if (playing){
+        dealWithBoxes();
+        floatingBox.draw();
+        drawEyes();
+        dealWithWeapons();
+        if (playing && !paused){
             window.requestAnimationFrame(playAnim);
         }
     } else {
-        if (playing){
+        if (playing && !paused){
             window.requestAnimationFrame(playAnim);
         }
     }
@@ -567,13 +788,22 @@ function startTheGame(){
     getBackground(100);
     drawBackground();
     missiles = [];
+    weaponsCurrent = [];
     PlayerOne = new ship(new vec(150,300), 1, Math.PI, p1Keys);
     PlayerTwo = new ship(new vec(650,300), 2, 0, p2Keys);
     PlayerOne.setAngularSpeed();
     PlayerTwo.setAngularSpeed();
+    if (Math.floor(Math.random()*2) > 0){
+        eyesChasing = PlayerOne;
+    } else {
+        eyesChasing = PlayerTwo;
+    }
     playing = true;
     then = Date.now();
     scene = "start";
+    resetWeaponTimer();
+    floatingBox = new presentBox(null);
+    floatingBox.existing = false;
     playAnim();
 };
 
@@ -602,13 +832,33 @@ function showMenu(){
     }
     ctx.font = "100px Faster One";
     ctx.textAlign = "center";
-    ctx.fillText("SpaceWar!", gameWidth/2, gameHeight/2);
+    ctx.fillText("Cosmic", gameWidth/2, gameHeight/2-150);
+    ctx.fillText("Coconut!", gameWidth/2, gameHeight/2-20);
     ctx.font = "40px Bungee Shade";
     ctx.fillText("Press S to start", gameWidth/2, 3* gameHeight/4);
+    //ctx.font = "20px Bungee Shade";
+    //ctx.fillText("In nomin: Eva", gameWidth/2, 3* gameHeight/4+40);
 }
 
-//startTheGame();
-window.onload = showMenu();
+function pause(){
+    paused = true;
+    ctx.fillStyle = "red";
+    ctx.font = "90px Monoton";
+    ctx.fillText("PAUSED", gameWidth/2, gameHeight/2);
+}
+
+function unPause(){
+    paused = false;
+    playAnim();
+}
+
+function finishLoading(){
+    document.getElementById("LoadingMessage").style.display = "none";
+    area.style.display = "inline";
+    showMenu();
+}
+
+window.onload = finishLoading();
 
 
 /*
@@ -630,11 +880,14 @@ Nitrous oxide
 Increase gravity
 Random ?!
 Asteroid rain
+Wormhole
+Universe breaks and topolog changes
 
-Ship overheats
 
 Random gravity
 
+Make box have attractive animation
+Make box open
 
 
 
