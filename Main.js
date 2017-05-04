@@ -3,7 +3,8 @@ var gameHeight = 600;   //Height of game zone in pixels
 var bgColor = "#000000";  //Color of the sky backdrop
 var starColor = "#FFFFFF";  //Color of the background stars
 var earthColor = "blue";   //Color of the planet in the middle
-var G = 20000;             //strength of gravity
+var defaultG = 20000;       //Default strength of gravity
+var G = defaultG;             //strength of gravity
 var dt = 0.5;               //Changing this is a mess. Most of the speed is measured in framses anyway
 var rotationSpeed = 0.2;    //Speed at which ships rotate when you press keys
 var earthRadius = 75;       //Size of planet inside
@@ -28,11 +29,12 @@ var eyesChasing = 1;        //Who the eyes of the Earth are chasing
 var weaponTimer = 0;        //Time until a weapon spawns
 var minWeaponWaitTime = 30; //Minimum wait for a weapon 200 seems reasonable
 var maxWeaponWaitTime = 50;//Max wait for a weapon 500 seems reasonable
-var weaponTypes = ["Mine"];       //All the possible weapons
+var weaponTypes = ["Mine", "Banana", "Gravity"];       //All the possible weapons
 var floatingBox = new presentBox(null);//The one possible weapon box
 var paused = false;
 var weaponsCurrent = [];    //Array that keeps track of weapons currently flying around
-
+var effectDuration = 15;    //Duration of weapon effects, in frames
+var GravityWarpTimer = 0;
 
 var area = document.getElementById("gameZone");
 area.width = gameWidth;
@@ -68,6 +70,10 @@ var imageBox = new Image();
 imageBox.src = 'Box.png';
 var imageMine = new Image();
 imageMine.src = 'Mine.png';
+var imageBanana = new Image();
+imageBanana.src = 'Banana.png';
+var imageGravity = new Image();
+imageGravity.src = 'Gravity.png';
 
 
 function vec(x,y){   ///Vector operations   ////////////////////////
@@ -270,21 +276,24 @@ function flyingThing(pos, vel){
 }
 
 
- flyingThing.prototype.gPull = function(){ //Computes the gravitational pull from the middle
+ flyingThing.prototype.gPull = function(gMult){ //Computes the gravitational pull from the middle
+     gMult = gMult || 1;
     if (this.pos.x === 0 && this.pos.y === 0){
         var Pull = new vec(0, 0);
         return Pull;
     } else {
         var Pull = this.pos.op().plus(O);
-        Pull = Pull.times(G * Math.pow(Pull.Vlength(), -3));
+        Pull = Pull.times(G * gMult * Math.pow(Pull.Vlength(), -3));
         return Pull;
     }
 };
 
-flyingThing.prototype.freeFall = function(){
-    this.vel = this.vel.plus(this.gPull().times(dt));
+flyingThing.prototype.freeFall = function(gMult){
+    gMult = gMult || 1;
+    var acc = this.gPull(gMult);
+    this.vel = this.vel.plus(acc.times(dt));
     this.pos = this.pos.plus(this.vel.times(dt));
-    this.pos = this.pos.plus(this.gPull().times(dt*dt/2));
+    this.pos = this.pos.plus(acc.times(dt*dt/2));
 }
 
 
@@ -320,6 +329,7 @@ function weapon(pos, vel, type, firedBy){
     this.type = type;
     this.living = 0;
     this.facing = 0;
+    this.firedBy = firedBy;
 }
 
 weapon.prototype = Object.create(flyingThing.prototype);
@@ -327,13 +337,20 @@ weapon.prototype.constructor = weapon;
 
 weapon.prototype.draw = function(){
     switch (this.type){
-                case "Mine":
-                    this.facing += 0.03;
-                    placeRotated(imageMine, this.pos, this.facing, 26, 26, 13, 13);
-                    break;
-                default:
-                    break;
-            }
+        case "Mine":
+            this.facing += 0.03;
+            placeRotated(imageMine, this.pos, this.facing, 26, 26, 13, 13);
+            break;
+        case "Banana":
+            placeRotated(imageBanana, this.pos, 0, 26, 26, 13, 13);
+            break;
+        case "Gravity":
+            this.facing += 0.06;
+            placeRotated(imageGravity, this.pos, this.facing, 26, 26, 13, 13);
+            break;
+        default:
+            break;
+        }
 }
 
 
@@ -344,21 +361,78 @@ function dealWithWeapons(){
                 case "Mine":
                     if (W.living < 10){
                         W.living ++;
-                    } else {
-                        if (PlayerOne.easyCollide(W.pos, 10)){
-                            PlayerOne.orbiting = false;
-                            PlayerOne.engineTemp += overheatTemp/2;
-                            PlayerOne.vel = PlayerOne.vel.times(0.2);
-                            weaponsCurrent.splice(w, 1);
-                            w--;
-                        } else if (PlayerTwo.easyCollide(W.pos, 10)){
-                            PlayerTwo.orbiting = false;
-                            PlayerTwo.engineTemp += overheatTemp/2;
-                            PlayerTwo.vel = PlayerTwo.vel.times(0.2);
-                            weaponsCurrent.splice(w, 1);
-                            w--;
-                        }
                     }
+                    if (PlayerOne.easyCollide(W.pos, 10) && (W.living == 10 || W.firedBy == 2)){
+                        PlayerOne.orbiting = false;
+                        //PlayerOne.engineTemp += overheatTemp/2;
+                        PlayerOne.vel = PlayerOne.vel.times(0.2);
+                        PlayerOne.status = "slowed";
+                        PlayerOne.statusTimer = effectDuration;
+                        weaponsCurrent.splice(w, 1);
+                        w--;
+                    } else if (PlayerTwo.easyCollide(W.pos, 10) && (W.living == 10 || W.firedBy == 1)){
+                        PlayerTwo.orbiting = false;
+                        //PlayerTwo.engineTemp += overheatTemp/2;
+                        PlayerTwo.vel = PlayerTwo.vel.times(0.2);
+                        PlayerTwo.status = "slowed";
+                        PlayerTwo.statusTimer = effectDuration;
+                        weaponsCurrent.splice(w, 1);
+                        w--;
+                    }
+                    
+                    break;
+                case "Banana":
+                    if (W.living < 10){
+                        W.living ++;
+                    }
+                    if (PlayerOne.easyCollide(W.pos, 10) && PlayerOne.status != "slowed" && (W.living == 10 || W.firedBy == 2)){
+                        PlayerOne.orbiting = false;
+                        PlayerOne.vel = PlayerOne.vel.times(2);
+                        PlayerOne.status = "slowed";
+                        PlayerOne.statusTimer = effectDuration;
+                        weaponsCurrent.splice(w, 1);
+                        w--;
+                    } else if (PlayerTwo.easyCollide(W.pos, 10) && PlayerTwo.status != "slowed" && (W.living == 10 || W.firedBy == 1)){
+                        PlayerTwo.orbiting = false;
+                        PlayerTwo.vel = PlayerTwo.vel.times(2);
+                        PlayerTwo.status = "slowed";
+                        PlayerTwo.statusTimer = effectDuration;
+                        weaponsCurrent.splice(w, 1);
+                        w--;
+                    }
+                    
+                    break;
+                case "Gravity":
+                    W.freeFall();
+                    W.leaveScreen();
+                    if (W.checkCollision()){
+                        GravityWarpTimer = effectDuration;
+                        weaponsCurrent.splice(w, 1);
+                        PlayerOne.orbiting = false;
+                        PlayerTwo.orbiting = false;
+                        w--;
+                    }
+                    if (W.living < 10){
+                        W.living ++;
+                    }
+                    //console.log("Collision: "+ PlayerTwo.easyCollide(W.pos, 10));
+                    //console.log("Alive: "+ (W.living == 10));
+                    //console.log("Fired by 1: "+ (W.firedBy == 1));
+                    //console.log("Total: "+ (PlayerTwo.easyCollide(W.pos, 10) && (W.living == 10 || W.firedBy == 1)));
+                    if (PlayerOne.easyCollide(W.pos, 10) && (W.living == 10 || W.firedBy == 2)){
+                        PlayerOne.orbiting = false;
+                        PlayerOne.status = "gravitied";
+                        PlayerOne.statusTimer = effectDuration;
+                        weaponsCurrent.splice(w, 1);
+                        w--;
+                    } else if (PlayerTwo.easyCollide(W.pos, 10) && (W.living == 10 || W.firedBy == 1)){
+                        PlayerTwo.orbiting = false;
+                        PlayerTwo.status = "gravitied";
+                        PlayerTwo.statusTimer = effectDuration;
+                        weaponsCurrent.splice(w, 1);
+                        w--;
+                    }
+                    
                     break;
                 default:
                     break;
@@ -366,6 +440,8 @@ function dealWithWeapons(){
         W.draw();
     }
 }
+
+
 
 function resetWeaponTimer(){
     weaponTimer = Math.floor((minWeaponWaitTime-maxWeaponWaitTime)*Math.random()+minWeaponWaitTime);
@@ -390,6 +466,7 @@ function dealWithBoxes(){
 }
 
 function randomWeapon(){
+    //console.log("Choosing weapon");
     var num = weaponTypes.length;
     return weaponTypes[Math.floor(Math.random()*num)];
 }
@@ -421,6 +498,8 @@ presentBox.prototype.open = function(player){
     resetWeaponTimer();
     this.existing = false;
     player.weapon = randomWeapon();
+    //console.log("Weapon of choice is"+ player.weapon);
+    player.ammo = 3;
 }
 
 
@@ -464,6 +543,9 @@ function ship(pos, whichPlayer, facing, keyScheme){
     this.hitboxEasy = new hitboxClass(18, 23, 14);
     this.whichPlayer = whichPlayer;
     this.weapon = "none";
+    this.ammo = 0;
+    this.status = "ok";
+    this.statusTimer = 0;
 }
 
 
@@ -475,8 +557,37 @@ ship.prototype.setAngularSpeed = function(){
     this.vel = canToEarth(this.pos).rot(Math.PI/2).times(this.angularspeed);
 }
 
+ship.prototype.clearStatus = function(){
+    this.statusTimer = 0;
+    this.enginePower = new vec(0, -enginesPower);
+    this.status = "ok";
+}
+
+ship.prototype.checkStatus = function(){
+    switch(this.status){
+        case "slowed":
+            if (this.statusTimer == effectDuration){
+                this.enginePower = this.enginePower.times(0.2); 
+            }
+            this.statusTimer = Math.max(0, this.statusTimer-1); 
+            if (this.statusTimer == 0){
+                this.clearStatus();
+            }
+            break;
+        case "gravitied":
+            this.statusTimer = Math.max(0, this.statusTimer-1); 
+            if (this.statusTimer == 0){
+                this.clearStatus();
+            }
+        default:
+            break;
+       
+    }
+}
+
 ship.prototype.takeStep = function(){
     if (!this.exploding){
+        this.checkStatus();
         this.hitByMissile();
         if (!this.orbiting || keysList[this.keyScheme.thrust]){
             this.orbiting = false;
@@ -484,7 +595,12 @@ ship.prototype.takeStep = function(){
                 this.engineTemp += engineCoolingRate + engineHeatingRate;
                 this.vel = this.vel.plus(this.enginePower.rot(this.facing).times(dt));
             }
-            this.freeFall();
+            if (this.status == "gravitied"){
+                var extraG = 7;
+            } else {
+                var extraG = 1;
+            }
+            this.freeFall(extraG);
         } else {         
             this.pos = earthToCan(canToEarth(this.pos).rot(this.angularspeed*dt));
             this.vel = this.vel.rot(this.angularspeed*dt);
@@ -501,8 +617,9 @@ ship.prototype.takeStep = function(){
         } else if (!this.overheat && this.engineTemp > overheatTemp){
             this.overheat = true;
         }
-        if (keysList[this.keyScheme.special]){
+        if (keysList[this.keyScheme.special] && this.coolDownTimer == 0){
             this.fireWeapon();
+            this.coolDownTimer = missileCooldown * 3;
         }
     } else if (this.firestate < explosionLength){
         this.firestate += 1;
@@ -560,6 +677,7 @@ ship.prototype.draw = function(){
         }
     }
     this.drawTempBar();
+    this.drawCurrentWeapon();
 }
 
 ship.prototype.rotate = function(){
@@ -655,10 +773,66 @@ ship.prototype.fireWeapon = function(){
     switch (this.weapon){
         case "Mine":
             weaponsCurrent.push(new weapon(this.pos, new vec(0, 0), "Mine", this.whichPlayer));
-            this.weapon = "none";
+            this.ammo -=1;
+            if (this.ammo == 0){
+                this.weapon = "none";
+            }
+            break;
+        case "Banana":
+            weaponsCurrent.push(new weapon(this.pos, new vec(0, 0), "Banana", this.whichPlayer));
+            this.ammo -=1;
+            if (this.ammo == 0){
+                this.weapon = "none";
+            }
+            break;
+        case "Gravity":
+            var outSpeed = new vec(0, -projectileSpeed);
+            outSpeed = outSpeed.rot(this.facing);
+            outSpeed = outSpeed.plus(this.vel);
+            weaponsCurrent.push(new weapon(this.pos, outSpeed, "Gravity", this.whichPlayer));
+            this.ammo -=1;
+            if (this.ammo == 0){
+                this.weapon = "none";
+            }
             break;
         default:
             this.weapon = "none";
+    }
+}
+
+ship.prototype.drawCurrentWeapon = function(){
+    if (this.whichPlayer == 1){
+        var xPosition = 130;
+    } else {
+        var xPosition = gameWidth-160;
+    }
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.strokeRect(xPosition,10,30,30);
+    ctx.strokeStyle = "#000000";
+    switch (this.weapon){
+        case "Mine":
+            ctx.drawImage(imageMine, xPosition, 10, 30, 30);
+            ctx.fillStyle = "red";
+            ctx.font = "bolder 15px Arial Black";
+            ctx.textAlign = "left";
+            ctx.fillText(this.ammo, xPosition + 2, 23);
+            break;
+        case "Banana":
+            ctx.drawImage(imageBanana, xPosition, 10, 30, 30);
+            ctx.fillStyle = "red";
+            ctx.font = "bolder 15px Arial Black";
+            ctx.textAlign = "left";
+            ctx.fillText(this.ammo, xPosition + 2, 23);
+            break;
+        case "Gravity":
+            ctx.drawImage(imageGravity, xPosition, 10, 30, 30);
+            ctx.fillStyle = "red";
+            ctx.font = "bolder 15px Arial Black";
+            ctx.textAlign = "left";
+            ctx.fillText(this.ammo, xPosition + 2, 23);
+            break;
+        default:
+            break;
     }
 }
 
@@ -696,6 +870,19 @@ missile.prototype.takeStep = function(){
     this.leaveScreen();
     if (this.living < missileLiveTime){
         this.living += 1;
+    }
+}
+
+function specialEffects(){
+    if (GravityWarpTimer == effectDuration){
+        //console.log("Graviting!");
+        G = G*5;
+    }
+    if (GravityWarpTimer > 0) {
+        GravityWarpTimer --;
+        if (GravityWarpTimer == 0){
+            G = defaultG;
+        }
     }
 }
 
@@ -770,6 +957,7 @@ function playAnim(){
         floatingBox.draw();
         drawEyes();
         dealWithWeapons();
+        specialEffects();
         if (playing && !paused){
             window.requestAnimationFrame(playAnim);
         }
@@ -837,13 +1025,14 @@ function showMenu(){
     ctx.font = "40px Bungee Shade";
     ctx.fillText("Press S to start", gameWidth/2, 3* gameHeight/4);
     //ctx.font = "20px Bungee Shade";
-    //ctx.fillText("In nomin: Eva", gameWidth/2, 3* gameHeight/4+40);
+   //ctx.fillText("In nomin: Eva", gameWidth/2, 3* gameHeight/4+40);
 }
 
 function pause(){
     paused = true;
     ctx.fillStyle = "red";
     ctx.font = "90px Monoton";
+    ctx.textAlign = "center";
     ctx.fillText("PAUSED", gameWidth/2, gameHeight/2);
 }
 
