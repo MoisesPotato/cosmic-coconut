@@ -886,6 +886,9 @@ function specialEffects(){
     }
 }
 
+function clearSpecialEffects(){
+    GravityWarpTimer = 0;
+}
 
 
 
@@ -977,6 +980,7 @@ function startTheGame(){
     drawBackground();
     missiles = [];
     weaponsCurrent = [];
+    clearSpecialEffects();
     PlayerOne = new ship(new vec(150,300), 1, Math.PI, p1Keys);
     PlayerTwo = new ship(new vec(650,300), 2, 0, p2Keys);
     PlayerOne.setAngularSpeed();
@@ -1024,8 +1028,8 @@ function showMenu(){
     ctx.fillText("Coconut!", gameWidth/2, gameHeight/2-20);
     ctx.font = "40px Bungee Shade";
     ctx.fillText("Press S to start", gameWidth/2, 3* gameHeight/4);
-    //ctx.font = "20px Bungee Shade";
-   //ctx.fillText("In nomin: Eva", gameWidth/2, 3* gameHeight/4+40);
+   // ctx.font = "20px Bungee Shade";
+    //ctx.fillText("In nomin: Eva", gameWidth/2, 3* gameHeight/4+40);
 }
 
 function pause(){
