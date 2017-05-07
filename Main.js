@@ -8,7 +8,7 @@ var G = defaultG;             //strength of gravity
 var dt = 0.5;               //Changing this is a mess. Most of the speed is measured in framses anyway
 var rotationSpeed = 0.2;    //Speed at which ships rotate when you press keys
 var earthRadius = 75;       //Size of planet inside
-var mode = "Torus";         //Universe is a torus. Only mode for now
+var mode = "RP2";         //Universe is a torus. Only mode for now. Other possibilites: Invertx, inverty (klein bottles), RP2
 var then;                   //Time of last animation frame
 var PlayerOne;              //Player ship
 var PlayerTwo;              //Player ship
@@ -30,11 +30,25 @@ var weaponTimer = 0;        //Time until a weapon spawns
 var minWeaponWaitTime = 30; //Minimum wait for a weapon 200 seems reasonable
 var maxWeaponWaitTime = 50;//Max wait for a weapon 500 seems reasonable
 var weaponTypes = ["Mine", "Banana", "Gravity"];       //All the possible weapons
+/*
+Adding a new weapon:
+Add to weapon types.
+Add to weapon.prototype.draw
+Add to DealWithWeapons
+Add to ship.prototype.fireWeapon
+Add to ship.prototype.drawCurrentWeapon
+Status effects:
+    Add to ship.prototype.checkStatus
+*/
 var floatingBox = new presentBox(null);//The one possible weapon box
 var paused = false;
 var weaponsCurrent = [];    //Array that keeps track of weapons currently flying around
 var effectDuration = 15;    //Duration of weapon effects, in frames
 var GravityWarpTimer = 0;
+var changingKey = false;
+var whichKeyIsChanging;
+
+
 
 var area = document.getElementById("gameZone");
 area.width = gameWidth;
@@ -128,7 +142,12 @@ earthToCan = function(v){
 
 ////////////// KEYS AND THEIR CODES ////////////////////////
 
+
+
 var leftKey = 37;
+var tab = 9;
+var alt = 18;
+var enter = 13;
 var rightKey = 39;
 var upKey = 38;
 var downKey = 40;
@@ -141,6 +160,30 @@ var sKey = 83;
 var wKey = 87;
 var mKey = 77;
 var pKey = 80;
+var oKey = 79;
+var cKey = 67;
+
+function stringFromCharCode(code){
+    if (code == leftKey){
+        return "Left";
+    } else if (code == rightKey){
+        return "Right";
+    } else if (code == upKey){
+        return "Up";
+    } else if (code == downKey){
+        return "Down";
+    } else if (code == spaceBar){
+        return "Space Bar";
+    } else if (code == rShift){
+        return "Shift";
+    } else if (code == tab){
+        return "tab";
+    } else if (code == enter){
+        return "enter";
+    } else {
+        return String.fromCharCode(code);
+    }
+}
 
 var p1Keys = new keySet(leftKey, rightKey, upKey, rShift, downKey);
 var p2Keys = new keySet(aKey, dKey, wKey, spaceBar, sKey);
@@ -150,8 +193,18 @@ var keysList = [];         // At any given point, keysList[leftKey] should be a 
 window.onkeyup = function(e) {keysList[e.keyCode]=false;
                              }
 window.onkeydown = function(e) {keysList[e.keyCode]=true;
-                                //console.log(e.keyCode);
-                               if (e.keyCode == leftKey || e.keyCode == rightKey || e.keyCode == upKey || e.keyCode == downKey){e.preventDefault();}}
+                               // console.log(e.keyCode);
+                               if (e.keyCode == leftKey || e.keyCode == rightKey || e.keyCode == upKey || e.keyCode == downKey || e.keyCode == spaceBar){e.preventDefault();}
+                               if (changingKey){
+                                    //console.log("Changing the key "+whichKeyIsChanging);
+                                    whichKeyIsChanging[0].changeKey(whichKeyIsChanging[1], e.keyCode);
+                                    //console.log("Keypressed: "+e.keyCode);
+                                    //console.log("The letter is "+stringFromCharCode(e.keyCode));
+                                    document.getElementById(whichKeyIsChanging[2]).innerHTML = stringFromCharCode(e.keyCode);
+                                    changingKey = false;
+                                    //console.log("Changed to "+p1Keys.moveLeft);
+                                }              
+}
 
 window.onkeypress = function(){
     if(scene =="GameOver"){
@@ -164,6 +217,16 @@ window.onkeypress = function(){
     if (scene =="menu"){
         if (keysList[sKey]){
             startTheGame();
+        } else if (keysList[oKey]){
+            showOptions();
+        } else if (keysList[cKey]){
+            showCredits();
+        }
+    }
+    if (scene =="options" || scene =="credits"){
+        if (keysList[mKey]){
+    		document.getElementById("controls").style.display = "none";
+            	showMenu();
         }
     }
     if (scene =="start"){
@@ -173,6 +236,10 @@ window.onkeypress = function(){
             unPause();
         }
     }
+    if (paused && keysList[mKey]){
+        showMenu();
+    }
+    
 }
 
 function keySet(moveLeft, moveRight, thrust, fire, special){
@@ -183,6 +250,26 @@ function keySet(moveLeft, moveRight, thrust, fire, special){
     this.special = special;
 }
 
+keySet.prototype.changeKey = function(whichKey, newCode){
+    switch (whichKey){
+        case "left":
+            this.moveLeft = newCode;
+            break;
+        case "right":
+            this.moveRight = newCode;
+            break;
+        case "thrust":
+            this.thrust = newCode;
+            break;
+        case "fire":
+            this.fire = newCode;
+            break;
+        case "special":
+            this.special = newCode;
+            break;
+            
+    }
+}
 
 
 
@@ -310,7 +397,83 @@ flyingThing.prototype.leaveScreen = function(){
         } else if (this.pos.y < 0){
             this.pos.y += gameHeight;
         }    
-    }   
+    } 
+    if(mode == "InvertX"){
+        if (this.pos.x > gameWidth){
+            this.pos.x -= gameWidth;
+        } else if (this.pos.x < 0){
+            this.pos.x += gameWidth;
+        }
+        if (this.pos.y > gameHeight){
+            this.pos.y -= gameHeight;
+            this.pos.x = gameWidth - this.pos.x;
+            this.vel.x = -this.vel.x;
+            if (this.constructor == ship){
+                this.facing = -this.facing;
+            }
+        } else if (this.pos.y < 0){
+            this.pos.y += gameHeight;
+            this.pos.x = gameWidth - this.pos.x;
+            this.vel.x = -this.vel.x;
+            if (this.constructor == ship){
+                this.facing = -this.facing;
+            }
+        }    
+    }
+    if(mode == "InvertY"){
+        if (this.pos.x > gameWidth){
+            this.pos.x -= gameWidth;
+            this.pos.y = gameHeight - this.pos.y;
+            this.vel.y = -this.vel.y;
+            if (this.constructor == ship){
+                this.facing = Math.PI/2 -this.facing;
+            }
+        } else if (this.pos.x < 0){
+            this.pos.x += gameWidth;
+            this.pos.y = gameHeight - this.pos.y;
+            this.vel.y = -this.vel.y;
+            if (this.constructor == ship){
+                this.facing = Math.PI/2 -this.facing;
+            }
+        }
+        if (this.pos.y > gameHeight){
+            this.pos.y -= gameHeight;
+        } else if (this.pos.y < 0){
+            this.pos.y += gameHeight;
+        }    
+    }
+    if(mode == "RP2"){
+        if (this.pos.x > gameWidth){
+            this.pos.x -= gameWidth;
+            this.pos.y = gameHeight - this.pos.y;
+            this.vel.y = -this.vel.y;
+            if (this.constructor == ship){
+                this.facing = Math.PI/2 -this.facing;
+            }
+        } else if (this.pos.x < 0){
+            this.pos.x += gameWidth;
+            this.pos.y = gameHeight - this.pos.y;
+            this.vel.y = -this.vel.y;
+            if (this.constructor == ship){
+                this.facing = Math.PI/2 -this.facing;
+            }
+        }
+        if (this.pos.y > gameHeight){
+            this.pos.y -= gameHeight;
+            this.pos.x = gameWidth - this.pos.x;
+            this.vel.x = -this.vel.x;
+            if (this.constructor == ship){
+                this.facing = -this.facing;
+            }
+        } else if (this.pos.y < 0){
+            this.pos.y += gameHeight;
+            this.pos.x = gameWidth - this.pos.x;
+            this.vel.x = -this.vel.x;
+            if (this.constructor == ship){
+                this.facing = -this.facing;
+            }
+        }    
+    }
 };
 
 
@@ -875,7 +1038,6 @@ missile.prototype.takeStep = function(){
 
 function specialEffects(){
     if (GravityWarpTimer == effectDuration){
-        //console.log("Graviting!");
         G = G*5;
     }
     if (GravityWarpTimer > 0) {
@@ -888,6 +1050,7 @@ function specialEffects(){
 
 function clearSpecialEffects(){
     GravityWarpTimer = 0;
+    G = defaultG;
 }
 
 
@@ -1026,10 +1189,173 @@ function showMenu(){
     ctx.textAlign = "center";
     ctx.fillText("Cosmic", gameWidth/2, gameHeight/2-150);
     ctx.fillText("Coconut!", gameWidth/2, gameHeight/2-20);
-    ctx.font = "40px Bungee Shade";
+    ctx.font = "30px Bungee Shade";
     ctx.fillText("Press S to start", gameWidth/2, 3* gameHeight/4);
+    ctx.fillText("Press O for options", gameWidth/2, 3* gameHeight/4 + 70);
+    //ctx.fillText("Press C for credits", gameWidth/2, 3* gameHeight/4 + 100);
    // ctx.font = "20px Bungee Shade";
     //ctx.fillText("In nomin: Eva", gameWidth/2, 3* gameHeight/4+40);
+}
+
+function showOptions(){
+    ctx.fillStyle = "black";
+    ctx.fillRect(0,0,1000,1000);
+    scene = "options";
+    starDisplay = [];
+    getBackground(50);
+    drawBackground();
+    ctx.fillStyle = "white"
+    ctx.font = "100px Faster One";
+    ctx.fillText("Options", gameWidth/2, 100);
+    ctx.font = "40px Bungee Shade";
+    ctx.textAlign = "left";
+    ctx.fillText("Controls", 30, 200);
+    ctx.font = "18px Bungee Shade";
+    ctx.textAlign = "center";
+    ctx.fillText("Press M to go back to menu", gameWidth/2, gameHeight - 50);
+    document.getElementById("controls").style.display = "table";
+    showControlButtons();
+}
+
+document.getElementById("p1left").addEventListener("click", function(){
+    changeControls(p1Keys, "left", "p1left");
+});
+document.getElementById("p1right").addEventListener("click", function(){
+    changeControls(p1Keys, "right", "p1right");
+});
+document.getElementById("p1thrust").addEventListener("click", function(){
+    changeControls(p1Keys, "thrust", "p1thrust");
+});
+document.getElementById("p1fire").addEventListener("click", function(){
+    changeControls(p1Keys, "fire", "p1fire");
+});
+document.getElementById("p1special").addEventListener("click", function(){
+    changeControls(p1Keys, "special", "p1special");
+});
+document.getElementById("p2left").addEventListener("click", function(){
+    changeControls(p1Keys, "left", "p2left");
+});
+document.getElementById("p2right").addEventListener("click", function(){
+    changeControls(p1Keys, "right", "p2right");
+});
+document.getElementById("p2thrust").addEventListener("click", function(){
+    changeControls(p1Keys, "thrust", "p2thrust");
+});
+document.getElementById("p2fire").addEventListener("click", function(){
+    changeControls(p1Keys, "fire", "p2fire");
+});
+document.getElementById("p2special").addEventListener("click", function(){
+    changeControls(p1Keys, "special", "p2special");
+});
+
+function changeControls(whichPlayer, whichKey, buttonId){
+    document.getElementById(buttonId).innerHTML = "Choose key now";
+    changingKey = true;
+    whichKeyIsChanging = [whichPlayer, whichKey, buttonId];
+}
+
+function callerBack (callback) {
+    callback (arguments[1], arguments[2]);
+}
+
+function showControlButtons(){
+    document.getElementById("p1left").innerHTML = stringFromCharCode(p1Keys.moveLeft);
+    document.getElementById("p1right").innerHTML = stringFromCharCode(p1Keys.moveRight);
+    document.getElementById("p1thrust").innerHTML = stringFromCharCode(p1Keys.thrust);
+    document.getElementById("p1fire").innerHTML = stringFromCharCode(p1Keys.fire);
+    document.getElementById("p1special").innerHTML = stringFromCharCode(p1Keys.special);
+    document.getElementById("p2left").innerHTML = stringFromCharCode(p2Keys.moveLeft);
+    document.getElementById("p2right").innerHTML = stringFromCharCode(p2Keys.moveRight);
+    document.getElementById("p2thrust").innerHTML = stringFromCharCode(p2Keys.thrust);
+    document.getElementById("p2fire").innerHTML = stringFromCharCode(p2Keys.fire);
+    document.getElementById("p2special").innerHTML = stringFromCharCode(p2Keys.special);
+    
+}
+
+
+function showCredits(){
+    ctx.fillStyle = "black";
+    ctx.fillRect(0,0,1000,1000);
+    scene = "credits";
+    starDisplay = [];
+    getBackground(50);
+    drawBackground();
+    var randomNo = Math.floor(5*Math.random());
+    var moisesTask;
+    switch (randomNo){
+        case 0:
+            moisesTask = "Potato peeling"
+            break;
+        case 1:
+            moisesTask = "Extreme napping"
+            break;
+        case 2:
+            moisesTask = "Cheeto tasting"
+            break;
+        case 3:
+            moisesTask = "Water smelling"
+            break;
+        case 4:
+            moisesTask = "Synergy deconstructing"
+            break;
+    }
+    randomNo = Math.floor(12*Math.random());
+    var sponsor;
+    switch (randomNo){
+        case 0:
+            sponsor = "Puleva"
+            break;
+        case 1:
+            sponsor = "Panrico"
+            break;
+        case 2:
+            sponsor = "Bimbo"
+            break;
+        case 3:
+            sponsor = "AhorraMás"
+            break;
+        case 4:
+            sponsor = "Hipercor"
+            break;
+        case 5:
+            sponsor = "Amena"
+            break;
+        case 6:
+            sponsor = "Ikea"
+            break;
+        case 7:
+            sponsor = "Sony"
+            break;
+        case 8:
+            sponsor = "Purificación García"
+            break;
+        case 9:
+            sponsor = "Juteco"
+            break;
+        case 10:
+            sponsor = "Renfe"
+            break;
+        case 11:
+            sponsor = "Canal de Isabel II"
+            break;
+    }
+    ctx.fillStyle = "orange"
+    ctx.font = "100px Faster One";
+    ctx.fillText("Credits", gameWidth/2, 100);
+    ctx.font = "25px Bungee Shade";
+    ctx.textAlign = "left";
+    ctx.fillText("Original idea", 30, 230);
+    ctx.fillText("Googly eyes", 30, 290);
+    ctx.fillText(moisesTask, 30, 350);
+    ctx.fillText("Corporate partnership", 30, 410);
+    ctx.textAlign = "right";
+    ctx.fillText("Spacewar!", gameWidth - 30, 230);
+    ctx.fillText("Eva",  gameWidth - 30, 290);
+    ctx.fillText("Moisés",  gameWidth - 30, 350);
+    ctx.fillText(sponsor,  gameWidth - 30, 410);
+    ctx.textAlign = "center";
+    ctx.font = "15px Bungee Shade";
+    ctx.fillText("Press M to go back to menu", gameWidth/2, gameHeight - 100);
 }
 
 function pause(){
@@ -1046,12 +1372,21 @@ function unPause(){
 }
 
 function finishLoading(){
-    document.getElementById("LoadingMessage").style.display = "none";
+    document.getElementById("LoadingMessage").style.color = "#000033";
     area.style.display = "inline";
     showMenu();
 }
 
-window.onload = finishLoading();
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function demo() {
+  await sleep(2000);
+  finishLoading();
+}
+
+window.onload = demo();
 
 
 /*
@@ -1074,7 +1409,7 @@ Increase gravity
 Random ?!
 Asteroid rain
 Wormhole
-Universe breaks and topolog changes
+Universe breaks and topology changes
 
 
 Random gravity
