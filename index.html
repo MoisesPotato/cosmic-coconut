@@ -1,6 +1,7 @@
 <!DOCTYPE HTML>
 <html>
 	<head>
+        <meta charset="utf-8" /> 
         <style>
             body{
                 background-color: #000033;
@@ -11,6 +12,24 @@
             #LoadingMessage{
                 color: white;
             }
+            #controls{
+                width : 700px;
+                height: 300px;
+                position: absolute;
+                top: 200px;
+                left: 20px;
+                font-family: Bungee Shade;
+                font-size: 25px;
+                color: yellow;
+                display: none;
+            }
+            .controlButton{
+                background-color: yellow;
+                display: block;
+                margin: auto;
+                width: 90px;
+                font-size: 15px;
+            }
         </style>
         <link href="https://fonts.googleapis.com/css?family=Bungee+Shade|Faster+One|Monoton" rel="stylesheet">
     <head>
@@ -18,8 +37,40 @@
         <canvas id="gameZone">
         </canvas>
     <!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>-->
-    <!--<script src="jquery.js"></script>-->
+        <!--<script src="jquery.js"></script>-->
         <p id="LoadingMessage"><span style="font-family: Faster One; font-size:100px; ">L</span><span style = "font-family: Bungee Shade; font-size:40px; ">oading</span><span style="font-family: Monoton; font-size:30px;" >...</span></p>
+        <table id="controls">
+          <tr>
+            <th></th>
+            <th>Player 1</th>
+            <th>Player 2</th> 
+          </tr>
+          <tr>
+            <td>Move left</td>
+            <td><button class="controlButton" id="p1left"></button></td> 
+            <td><button class="controlButton" id="p2left"></button></td> 
+          </tr>
+            <tr>
+            <td>Move right</td>
+            <td><button class="controlButton" id="p1right"></button></td> 
+            <td><button class="controlButton" id="p2right"></button></td> 
+          </tr>
+            <tr>
+            <td>Thrust</td>
+            <td><button class="controlButton" id="p1thrust"></button></td> 
+            <td><button class="controlButton" id="p2thrust"></button></td> 
+          </tr>
+            <tr>
+            <td>Fire</td>
+            <td><button class="controlButton" id="p1fire"></button></td> 
+            <td><button class="controlButton" id="p2fire"></button></td> 
+          </tr>
+            <tr>
+            <td>Special</td>
+            <td><button class="controlButton" id="p1special"></button></td> 
+            <td><button class="controlButton" id="p2special"></button></td> 
+          </tr>
+        </table>
     <script src=Main.js>        
     </script>
     </body>
