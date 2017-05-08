@@ -8,7 +8,7 @@ var G = defaultG;             //strength of gravity
 var dt = 0.5;               //Changing this is a mess. Most of the speed is measured in framses anyway
 var rotationSpeed = 0.2;    //Speed at which ships rotate when you press keys
 var earthRadius = 75;       //Size of planet inside
-var mode = "RP2";         //Universe is a torus. Only mode for now. Other possibilites: Invertx, inverty (klein bottles), RP2
+var mode = "torus";         //Universe is a torus. Only mode for now. Other possibilites: Invertx, inverty (klein bottles), RP2
 var then;                   //Time of last animation frame
 var PlayerOne;              //Player ship
 var PlayerTwo;              //Player ship
@@ -1233,19 +1233,19 @@ document.getElementById("p1special").addEventListener("click", function(){
     changeControls(p1Keys, "special", "p1special");
 });
 document.getElementById("p2left").addEventListener("click", function(){
-    changeControls(p1Keys, "left", "p2left");
+    changeControls(p2Keys, "left", "p2left");
 });
 document.getElementById("p2right").addEventListener("click", function(){
-    changeControls(p1Keys, "right", "p2right");
+    changeControls(p2Keys, "right", "p2right");
 });
 document.getElementById("p2thrust").addEventListener("click", function(){
-    changeControls(p1Keys, "thrust", "p2thrust");
+    changeControls(p2Keys, "thrust", "p2thrust");
 });
 document.getElementById("p2fire").addEventListener("click", function(){
-    changeControls(p1Keys, "fire", "p2fire");
+    changeControls(p2Keys, "fire", "p2fire");
 });
 document.getElementById("p2special").addEventListener("click", function(){
-    changeControls(p1Keys, "special", "p2special");
+    changeControls(p2Keys, "special", "p2special");
 });
 
 function changeControls(whichPlayer, whichKey, buttonId){
