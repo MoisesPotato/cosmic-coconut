@@ -8,7 +8,7 @@ var G = defaultG;             //strength of gravity
 var dt = 0.5;               //Changing this is a mess. Most of the speed is measured in framses anyway
 var rotationSpeed = 0.2;    //Speed at which ships rotate when you press keys
 var earthRadius = 75;       //Size of planet inside
-var mode = "torus";         //Universe is a torus. Only mode for now. Other possibilites: Invertx, inverty (klein bottles), RP2
+var mode = "Torus";         //Universe is a torus. Only mode for now. Other possibilites: Invertx, inverty (klein bottles), RP2
 var then;                   //Time of last animation frame
 var PlayerOne;              //Player ship
 var PlayerTwo;              //Player ship
