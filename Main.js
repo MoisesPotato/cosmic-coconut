@@ -29,7 +29,7 @@ var eyesChasing = 1;        //Who the eyes of the Earth are chasing
 var weaponTimer = 0;        //Time until a weapon spawns
 var minWeaponWaitTime = 30; //Minimum wait for a weapon 200 seems reasonable
 var maxWeaponWaitTime = 50;//Max wait for a weapon 500 seems reasonable
-var weaponTypes = ["Mine", "Banana", "Gravity"];       //All the possible weapons
+var weaponTypes = ["Mine", "Banana", "Gravity", "Top"];       //All the possible weapons
 /*
 Adding a new weapon:
 Add to weapon types.
@@ -46,7 +46,9 @@ var weaponsCurrent = [];    //Array that keeps track of weapons currently flying
 var effectDuration = 15;    //Duration of weapon effects, in frames
 var GravityWarpTimer = 0;
 var changingKey = false;
-var whichKeyIsChanging;
+var whichKeyIsChanging = null;
+var topologyCounter = 0;
+
 
 
 
@@ -88,7 +90,14 @@ var imageBanana = new Image();
 imageBanana.src = 'Banana.png';
 var imageGravity = new Image();
 imageGravity.src = 'Gravity.png';
-
+var imageLightning = new Image();
+imageLightning.src = 'Lightning.png';
+var imageTop = new Image();
+imageTop.src = 'Topologizer.png';
+var imageHCrack = new Image();
+imageHCrack.src = 'HCrack.png';
+var imageVCrack = new Image();
+imageVCrack.src = 'VCrack.png';
 
 function vec(x,y){   ///Vector operations   ////////////////////////
     this.x = x;
@@ -202,6 +211,7 @@ window.onkeydown = function(e) {keysList[e.keyCode]=true;
                                     //console.log("The letter is "+stringFromCharCode(e.keyCode));
                                     document.getElementById(whichKeyIsChanging[2]).innerHTML = stringFromCharCode(e.keyCode);
                                     changingKey = false;
+                                    whichKeyIsChanging = null;
                                     //console.log("Changed to "+p1Keys.moveLeft);
                                 }              
 }
@@ -237,6 +247,7 @@ window.onkeypress = function(){
         }
     }
     if (paused && keysList[mKey]){
+        paused = false;
         showMenu();
     }
     
@@ -282,8 +293,32 @@ function getBackground(starNumber){    //Makes a list of star positions
         var x = Math.floor(Math.random()*gameWidth);
         var y = Math.floor(Math.random()*gameHeight);
         starDisplay.push(new vec(x,y));
+    }   
+}
+
+function flipStarDisplay(HV, LRUD){
+    for (var s = 0; s < starDisplay.length; s++){
+        if(HV == "H" && LRUD == "U"){
+            if (starDisplay[s].y < gameHeight/2){
+                starDisplay[s].x = gameWidth - starDisplay[s].x;
+            }
+        }
+        if(HV == "H" && LRUD == "D"){
+            if (starDisplay[s].y > gameHeight/2){
+                starDisplay[s].x = gameWidth - starDisplay[s].x;
+            }
+        }
+        if(HV == "V" && LRUD == "L"){
+            if (starDisplay[s].x < gameWidth/2){
+                starDisplay[s].y = gameHeight - starDisplay[s].y;
+            }
+        }
+        if(HV == "V" && LRUD == "R"){
+            if (starDisplay[s].x > gameWidth/2){
+                starDisplay[s].y = gameHeight - starDisplay[s].y;
+            }
+        }
     }
-    
 }
 
 function drawBackground(){
@@ -516,6 +551,120 @@ weapon.prototype.draw = function(){
         }
 }
 
+flyingThing.prototype.flip = function(HV, LRUD){
+    if(HV == "H" && LRUD == "U"){
+        if (this.pos.y < gameHeight/2){
+            this.pos.x = gameWidth - this.pos.x;
+            this.vel.x = -this.vel.x;
+            if(this.constructor == ship){
+                this.facing = -this.facing;
+                this.orbiting = false;
+            }
+        }
+    }
+    if(HV == "H" && LRUD == "D"){
+        if (this.pos.y > gameHeight/2){
+            this.pos.x = gameWidth - this.pos.x;
+            this.vel.x = -this.vel.x;
+            if(this.constructor == ship){
+                this.facing = -this.facing;
+                this.orbiting = false;
+            }
+        }
+    }
+    if(HV == "V" && LRUD == "L"){
+        if (this.pos.x < gameWidth/2){
+            this.pos.y = gameHeight - this.pos.y;
+            this.vel.y = -this.vel.y;
+            if(this.constructor == ship){
+                this.facing = Math.PI-this.facing;
+                this.orbiting = false;
+            }
+        }
+    }
+    if(HV == "V" && LRUD == "R"){
+        if (this.pos.x > gameWidth/2){
+            this.pos.y = gameHeight - this.pos.y;
+            this.vel.y = -this.vel.y;
+            if(this.constructor == ship){
+                this.facing = Math.PI-this.facing;
+                this.orbiting = false;
+            }
+        }
+    }
+}
+
+function flipScene(HV, LRUD){
+        PlayerOne.flip(HV, LRUD);
+        PlayerTwo.flip(HV, LRUD);
+        for (var m = 0; m < missiles.length; m++){
+            missiles[m].flip(HV, LRUD);
+        }
+        for (var m = 0; m < weaponsCurrent.length; m++){
+            weaponsCurrent[m].flip(HV, LRUD);
+        }
+        if (floatingBox.existing){
+            floatingBox.flip(HV, LRUD);
+        }
+        flipStarDisplay(HV, LRUD);
+        var newMode;
+    if(HV == "H"){
+        switch (mode){
+            case "Torus":
+                newMode = "InvertX";
+                break;
+            case "InvertX":
+                newMode = "Torus";
+                break;
+            case "InvertY":
+                newMode = "RP2";
+                break;
+            case "RP2":
+                newMode = "InvertY";
+                break;
+        }
+        ctx.drawImage(imageHCrack, 0, 0, gameWidth, gameHeight);
+    }
+    if(HV == "V"){
+        switch (mode){
+            case "Torus":
+                newMode = "InvertY";
+                break;
+            case "InvertX":
+                newMode = "RP2";
+                break;
+            case "InvertY":
+                newMode = "Torus";
+                break;
+            case "RP2":
+                newMode = "InvertX";
+                break;
+        }
+        ctx.drawImage(imageVCrack, 0, 0, gameWidth, gameHeight);
+    }
+    mode = newMode;
+}
+
+
+
+function flipAround(){
+    var whichFLip = Math.floor(Math.random()*5);
+    switch (whichFLip){
+        case 1:
+            flipScene("H","U");
+            break;
+        case 2:
+            flipScene("H","D");
+            break;
+        case 3:
+            flipScene("V","L");
+            break;
+        case 4:
+            flipScene("V","R");
+            break;
+    }
+}
+
 
 function dealWithWeapons(){
     for (var w = 0; w < weaponsCurrent.length; w++){
@@ -602,6 +751,13 @@ function dealWithWeapons(){
             }
         W.draw();
     }
+    if (topologyCounter == 3 || topologyCounter == 1 || topologyCounter == 5){
+        ctx.drawImage(imageLightning, 0, 0, gameWidth, gameHeight);
+        topologyCounter --;
+    } else if (topologyCounter == 4 || topologyCounter == 6){
+        flipAround();
+        topologyCounter--;
+    }
 }
 
 
@@ -637,7 +793,7 @@ function randomWeapon(){
 
 ////////////////////// CLASS FOR PRESENT BOXES ////////////
 function presentBox(pos){
-    flyingThing.call(this, pos, null);
+    flyingThing.call(this, pos, new vec(0, 0));
     this.existing = false;
     this.timer = 0;
     this.growing = true;
@@ -958,6 +1114,9 @@ ship.prototype.fireWeapon = function(){
                 this.weapon = "none";
             }
             break;
+        case "Top":
+            topologyCounter = 6;
+            this.weapon = "none";
         default:
             this.weapon = "none";
     }
@@ -993,6 +1152,9 @@ ship.prototype.drawCurrentWeapon = function(){
             ctx.font = "bolder 15px Arial Black";
             ctx.textAlign = "left";
             ctx.fillText(this.ammo, xPosition + 2, 23);
+            break;
+        case "Top":
+            ctx.drawImage(imageTop, xPosition, 10, 30, 30);
             break;
         default:
             break;
@@ -1038,6 +1200,7 @@ missile.prototype.takeStep = function(){
 
 function specialEffects(){
     if (GravityWarpTimer == effectDuration){
+        //console.log("Graviting!");
         G = G*5;
     }
     if (GravityWarpTimer > 0) {
@@ -1138,6 +1301,7 @@ function playAnim(){
 };
 
 function startTheGame(){
+    mode = "Torus";
     starDisplay = [];
     getBackground(100);
     drawBackground();
@@ -1249,13 +1413,12 @@ document.getElementById("p2special").addEventListener("click", function(){
 });
 
 function changeControls(whichPlayer, whichKey, buttonId){
+    if (whichKeyIsChanging != null){
+        showControlButtons();
+    }
     document.getElementById(buttonId).innerHTML = "Choose key now";
     changingKey = true;
     whichKeyIsChanging = [whichPlayer, whichKey, buttonId];
-}
-
-function callerBack (callback) {
-    callback (arguments[1], arguments[2]);
 }
 
 function showControlButtons(){
