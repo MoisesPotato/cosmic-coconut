@@ -18,7 +18,7 @@ var missiles = [];          //Array storing all the flying missiles
 var projectileSpeed = 20;   //Speed at which a missile is fired
 var explosionLength = 15;   //Time a ship spends exploding
 var overheatTemp = 20;      //Temperature at which a ship starts overheating
-var missileCooldown = 5;    //Min time between missiles
+var missileCooldown = 8;    //Min time between missiles
 var enginesPower = 1.5;       //Power of the ship engine
 var engineCoolingRate = 0.5;//Rate at which the engine cools by default
 var engineHeatingRate = 1.5;  //Rate at which the engine heats when thrust is on
@@ -29,7 +29,7 @@ var eyesChasing = 1;        //Who the eyes of the Earth are chasing
 var weaponTimer = 0;        //Time until a weapon spawns
 var minWeaponWaitTime = 30; //Minimum wait for a weapon 200 seems reasonable
 var maxWeaponWaitTime = 50;//Max wait for a weapon 500 seems reasonable
-var weaponTypes = ["Mine", "Banana", "Gravity", "Top"];       //All the possible weapons
+var weaponTypes = ["Mine", "Banana", "Gravity", "Top", "Guided", "Guided3"];       //All the possible weapons
 /*
 Adding a new weapon:
 Add to weapon types.
@@ -42,12 +42,13 @@ Status effects:
 */
 var floatingBox = new presentBox(null);//The one possible weapon box
 var paused = false;
-var weaponsCurrent = [];    //Array that keeps track of weapons currently flying around
-var effectDuration = 15;    //Duration of weapon effects, in frames
-var GravityWarpTimer = 0;
-var changingKey = false;
-var whichKeyIsChanging = null;
-var topologyCounter = 0;
+var weaponsCurrent = [];        //Array that keeps track of weapons currently flying around
+var effectDuration = 15;        //Duration of weapon effects, in frames
+var GravityWarpTimer = 0;       //Time left of extra gravity
+var changingKey = false;        //For changing controls   
+var whichKeyIsChanging = null; //For changing controls
+var topologyCounter = 0;        //Time left in the topolgizer effect
+var guidedAgility = 0.1;        //How fast can the guided missile turn
 
 
 
@@ -90,6 +91,10 @@ var imageBanana = new Image();
 imageBanana.src = 'Banana.png';
 var imageGravity = new Image();
 imageGravity.src = 'Gravity.png';
+var imageMissile = new Image();
+imageMissile.src = 'Missile.png';
+var imageMissileNoFire = new Image();
+imageMissileNoFire.src = 'MissileNoFire.png';
 var imageLightning = new Image();
 imageLightning.src = 'Lightning.png';
 var imageTop = new Image();
@@ -127,6 +132,85 @@ function vec(x,y){   ///Vector operations   ////////////////////////
     this.cross = function (v){
         return this.x * v.y - this.y * v.x;
     }
+    this.dot = function (v){
+        return this.x * v.x + this.y * v.y;
+    }
+    this.flipHor = function(){
+        return new vec(gameWidth - this.x, this.y);
+    }
+    this.flipVer = function(){
+        return new vec(this.x, gameHeight - this.y);
+    }
+    this.flipVyH = function(){
+        return new vec(gameWidth - this.x, gameHeight - this.y);
+    }
+    this.toAngle = function(){//Returns the angle that the vector is facing towards, in radians. It is measured from "up"=0, and "left"=PI/2
+        var answer = Math.atan(this.x/this.y);
+        if (this.y > 0){
+            answer = answer + Math.PI;
+        }
+        return answer;
+    }
+    this.projectOn = function(v){
+        return v.times(this.dot(v)/v.VlengthSq());
+    }
+}
+
+shortestPath = function(v, w){//Finds shortest path from v to w (depends on "mode"), returns the vector that gives said path
+    var PossiblePaths = [w.plus(v.op())];
+    switch (mode){
+            case "Torus":
+                PossiblePaths.push(w.plus(new vec(gameWidth,    0))             .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(-gameWidth,   0))             .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(0,            gameHeight))    .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(0,            -gameHeight))   .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(gameWidth,    gameHeight))    .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(gameWidth,    -gameHeight))   .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(-gameWidth,   gameHeight))    .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(-gameWidth,   -gameHeight))   .plus(v.op()));
+                break;
+            case "InvertX":
+                PossiblePaths.push(w.plus(new vec(gameWidth,    0))             .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(-gameWidth,   0))             .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(0,            gameHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(0,            -gameHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(gameWidth,    gameHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(gameWidth,    -gameHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(-gameWidth,   gameHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(-gameWidth,   -gameHeight))   .plus(v.op()));
+                break;
+            case "InvertY":
+                PossiblePaths.push(w.flipVer().plus(new vec(gameWidth,    0))             .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(-gameWidth,   0))             .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(0,            gameHeight))    .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(0,            -gameHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(gameWidth,    gameHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(gameWidth,    -gameHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(-gameWidth,   gameHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(-gameWidth,   -gameHeight))   .plus(v.op()));
+                break;
+            case "RP2":
+                PossiblePaths.push(w.flipVer().plus(new vec(gameWidth,    0))             .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(-gameWidth,   0))             .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(0,            gameHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(0,            -gameHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipVyH().plus(new vec(gameWidth,    gameHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipVyH().plus(new vec(gameWidth,    -gameHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipVyH().plus(new vec(-gameWidth,   gameHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipVyH().plus(new vec(-gameWidth,   -gameHeight))   .plus(v.op()));
+                break;
+        }
+    var minLength = 1000000;
+    var minPathIndex = -1;
+    for (var i = 0; i < 9; i++){
+        var lengthAttempt = PossiblePaths[i].VlengthSq();
+        if (lengthAttempt < minLength){
+            minLength = lengthAttempt;
+            minPathIndex = i;
+        }
+    }
+    //console.log("Length is "+Math.sqrt(minLength));
+    return PossiblePaths[minPathIndex];
 }
 
 //Placing a rotated image ////////////////////////
@@ -148,6 +232,10 @@ canToEarth = function(v){
 earthToCan = function(v){
     return v.plus(O);
 }
+
+
+
+
 
 ////////////// KEYS AND THEIR CODES ////////////////////////
 
@@ -281,6 +369,7 @@ keySet.prototype.changeKey = function(whichKey, newCode){
             
     }
 }
+
 
 
 
@@ -528,6 +617,7 @@ function weapon(pos, vel, type, firedBy){
     this.living = 0;
     this.facing = 0;
     this.firedBy = firedBy;
+    this.turnSpeed = 0;
 }
 
 weapon.prototype = Object.create(flyingThing.prototype);
@@ -541,6 +631,30 @@ weapon.prototype.draw = function(){
             break;
         case "Banana":
             placeRotated(imageBanana, this.pos, 0, 26, 26, 13, 13);
+            break;
+        case "Guided":
+            if (this.living < 50){
+                this.facing = this.vel.toAngle();
+                placeRotated(imageMissile, this.pos, this.facing, 17*0.75, 37*0.75, 13, 13);
+            } else if (this.living == 50) {
+                this.turnSpeed = this.vel.toAngle() - this.facing;
+                placeRotated(imageMissileNoFire, this.pos, this.vel.toAngle(), 17*0.75, 37*0.75, 13, 13);
+            } else {
+                this.facing += this.turnSpeed;
+                placeRotated(imageMissileNoFire, this.pos, this.facing, 17*0.75, 37*0.75, 13, 13);
+            }
+            break;
+        case "Guided3":
+            this.facing = this.vel.toAngle();
+            if (this.living < 50){
+                placeRotated(imageMissile, this.pos, this.facing, 17*0.5, 37*0.5, 13, 13);
+            } else if (this.living == 50) {
+                this.turnSpeed = this.vel.toAngle() - this.facing;                
+                placeRotated(imageMissileNoFire, this.pos, this.vel.toAngle(), 17*0.5, 37*0.5, 13, 13);
+            } else {
+                this.facing += this.turnSpeed;                
+                placeRotated(imageMissileNoFire, this.pos, this.facing, 17*0.5, 37*0.5, 13, 13);
+            }
             break;
         case "Gravity":
             this.facing += 0.06;
@@ -666,7 +780,7 @@ function flipAround(){
 }
 
 
-function dealWithWeapons(){
+function dealWithWeapons(){   //Animation of weapons which are floating around
     for (var w = 0; w < weaponsCurrent.length; w++){
         var W = weaponsCurrent[w];
             switch (W.type){
@@ -744,7 +858,66 @@ function dealWithWeapons(){
                         weaponsCurrent.splice(w, 1);
                         w--;
                     }
-                    
+                    break;
+                case "Guided":
+                    W.freeFall();
+                    W.leaveScreen();
+                    if (W.checkCollision()){
+                        weaponsCurrent.splice(w, 1);
+                        w--;
+                    }
+                    if (W.living < 150){
+                        W.living ++;
+                        if (W.firedBy == 1){
+                        var newDir = shortestPath(W.pos, PlayerTwo.pos.plus(PlayerTwo.vel.times(5)));
+                        } else {
+                            var newDir = shortestPath(W.pos, PlayerOne.pos.plus(PlayerOne.vel.times(5)));    
+                        }
+                        newDir = newDir.times(1/(newDir.Vlength())).times(guidedAgility);
+                        newDir = newDir.projectOn(W.vel.rot(Math.PI/2));
+                        //console.log("Direction change is "+newDir.x.toFixed(2)+", "+newDir.y.toFixed(2));
+                        //console.log("Current speed is "+W.vel.x.toFixed(2)+", "+W.vel.y.toFixed(2));
+                        W.vel = W.vel.plus(newDir.times(W.vel.Vlength()));
+                    }
+                    if (PlayerOne.easyCollide(W.pos, 7) && (W.living >= 10 || W.firedBy == 2)){
+                        PlayerOne.exploding = true;
+                        weaponsCurrent.splice(w, 1);
+                        w--;
+                    } else if (PlayerTwo.easyCollide(W.pos, 7) && (W.living >= 10 || W.firedBy == 1)){
+                        PlayerTwo.exploding = true;
+                        weaponsCurrent.splice(w, 1);
+                        w--;
+                    }
+                    break;
+                case "Guided3":
+                    W.freeFall();
+                    W.leaveScreen();
+                    if (W.checkCollision()){
+                        weaponsCurrent.splice(w, 1);
+                        w--;
+                    }
+                    if (W.living < 150){
+                        W.living ++;
+                        if (W.firedBy == 1){
+                        var newDir = shortestPath(W.pos, PlayerTwo.pos.plus(PlayerTwo.vel.times(5)));
+                        } else {
+                            var newDir = shortestPath(W.pos, PlayerOne.pos.plus(PlayerOne.vel.times(5)));    
+                        }
+                        newDir = newDir.times(1/(newDir.Vlength())).times(guidedAgility / 1.5);
+                        newDir = newDir.projectOn(W.vel.rot(Math.PI/2));
+                        //console.log("Direction change is "+newDir.x.toFixed(2)+", "+newDir.y.toFixed(2));
+                        //console.log("Current speed is "+W.vel.x.toFixed(2)+", "+W.vel.y.toFixed(2));
+                        W.vel = W.vel.plus(newDir.times(W.vel.Vlength()));
+                    }
+                    if (PlayerOne.easyCollide(W.pos, 4) && (W.living >= 10 || W.firedBy == 2)){
+                        PlayerOne.exploding = true;
+                        weaponsCurrent.splice(w, 1);
+                        w--;
+                    } else if (PlayerTwo.easyCollide(W.pos, 4) && (W.living >= 10 || W.firedBy == 1)){
+                        PlayerTwo.exploding = true;
+                        weaponsCurrent.splice(w, 1);
+                        w--;
+                    }
                     break;
                 default:
                     break;
@@ -1052,7 +1225,7 @@ ship.prototype.hitByMissile = function(){
 ship.prototype.easyCollide = function(whatHit, size){ //Checks collision against thing. Uses easy hitbox. WhatHit is the position vector of the second object
     var relPos = whatHit.plus(this.pos.op());
     var dist = relPos.Vlength();
-    if (dist < 27+ size){
+    if (dist < 27 + size){
         relPos = relPos.rot(this.facing);
         /*console.log("Position of missile is x = "+missiles[j].pos.x+", y = "+missiles[j].pos.y);
         console.log("Position of player is x = "+this.pos.x+", y = "+this.pos.y);
@@ -1117,8 +1290,32 @@ ship.prototype.fireWeapon = function(){
         case "Top":
             topologyCounter = 6;
             this.weapon = "none";
+            break;
+        case "Guided":
+            var outSpeed = new vec(0, -projectileSpeed);
+            outSpeed = outSpeed.rot(this.facing);
+            outSpeed = outSpeed.plus(this.vel);
+            weaponsCurrent.push(new weapon(this.pos, outSpeed, "Guided", this.whichPlayer));
+            this.ammo = 0;
+            this.weapon = "none";
+            break;
+        case "Guided3":
+            var outSpeed = new vec(0, -projectileSpeed / 1.5);
+            outSpeed = outSpeed.rot(this.facing);
+            var outSpeed2 = outSpeed.plus(this.vel);
+            weaponsCurrent.push(new weapon(this.pos, outSpeed2, "Guided3", this.whichPlayer));
+            outSpeed = outSpeed.rot(Math.PI/4);
+            var outSpeed2 = outSpeed.plus(this.vel);
+            weaponsCurrent.push(new weapon(this.pos, outSpeed2, "Guided3", this.whichPlayer));
+            outSpeed = outSpeed.rot(- Math.PI/2);
+            var outSpeed2 = outSpeed.plus(this.vel);
+            weaponsCurrent.push(new weapon(this.pos, outSpeed2, "Guided3", this.whichPlayer));
+            this.ammo = 0;
+            this.weapon = "none";
+            break;
         default:
             this.weapon = "none";
+            break;
     }
 }
 
@@ -1156,6 +1353,22 @@ ship.prototype.drawCurrentWeapon = function(){
         case "Top":
             ctx.drawImage(imageTop, xPosition, 10, 30, 30);
             break;
+        case "Guided":
+            ctx.drawImage(imageMissile, xPosition + 8, 10, 14, 30);
+            ctx.fillStyle = "yellow";
+            ctx.font = "bolder 15px Arial Black";
+            ctx.textAlign = "left";
+            ctx.fillText("1", xPosition + 1, 23);
+            break;
+         case "Guided3":
+            ctx.drawImage(imageMissile, xPosition     , 12, 12, 27);
+            ctx.drawImage(imageMissile, xPosition + 8 , 12, 12, 27);
+            ctx.drawImage(imageMissile, xPosition + 16, 12, 12, 27);
+            ctx.fillStyle = "yellow";
+            ctx.font = "bolder 15px Arial Black";
+            ctx.textAlign = "left";
+            ctx.fillText("1", xPosition + 1, 23);
+            break;
         default:
             break;
     }
@@ -1178,7 +1391,7 @@ missile.prototype.constructor = missile;
 missile.prototype.draw = function(){
     ctx.beginPath();
     ctx.arc(this.pos.x, this.pos.y, 3, 0, 2 * Math.PI);
-    if (this.firedBy ==1){
+    if (this.firedBy == 1){
         ctx.fillStyle = "red";
     } else {
         ctx.fillStyle = "#00FF00";
@@ -1412,12 +1625,21 @@ document.getElementById("p2special").addEventListener("click", function(){
     changeControls(p2Keys, "special", "p2special");
 });
 
+function symmetricControls(){ //Makes player one have the same controls as P2
+    p1Keys.changeKey("left",p2Keys.moveLeft);
+    p1Keys.changeKey("right",p2Keys.moveRight);
+    p1Keys.changeKey("thrust",p2Keys.thrust);
+    p1Keys.changeKey("fire",p2Keys.fire);
+    p1Keys.changeKey("special",p2Keys.special);
+}
+
 function changeControls(whichPlayer, whichKey, buttonId){
     if (whichKeyIsChanging != null){
         showControlButtons();
     }
     document.getElementById(buttonId).innerHTML = "Choose key now";
     changingKey = true;
+    //console.log(whichKeyIsChanging);
     whichKeyIsChanging = [whichPlayer, whichKey, buttonId];
 }
 
@@ -1535,6 +1757,7 @@ function unPause(){
 }
 
 function finishLoading(){
+    //console.log("Loaded");
     document.getElementById("LoadingMessage").style.color = "#000033";
     area.style.display = "inline";
     showMenu();
