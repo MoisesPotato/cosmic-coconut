@@ -51,7 +51,7 @@ var whichKeyIsChanging = null; //For changing controls
 var topologyCounter = 0;        //Time left in the topolgizer effect
 var guidedAgility = 0.1;        //How fast can the guided missile turn
 var magnetStrength = 2;       //How strong the magnet pull is
-var bombTimer = 100;            //How long before bomb detonation
+var bombTimer = 60;            //How long before bomb detonation
 var blastRadius = 130;          //Of the bomb
 
 
@@ -657,6 +657,7 @@ function weapon(pos, vel, type, firedBy){
     this.facing = 0;
     this.firedBy = firedBy;
     this.turnSpeed = 0;
+    this.history = [];
 }
 
 weapon.prototype = Object.create(flyingThing.prototype);
@@ -922,6 +923,7 @@ function dealWithWeapons(){   //Animation of weapons which are floating around
                     }
                     break;
                 case "Guided":
+                    W.history.push({pos:W.pos, vel:W.vel});
                     W.freeFall();
                     W.leaveScreen();
                     if (W.checkCollision()){
@@ -943,15 +945,18 @@ function dealWithWeapons(){   //Animation of weapons which are floating around
                     }
                     if (PlayerOne.easyCollide(W.pos, 7) && (W.living >= 10 || W.firedBy == 2)){
                         PlayerOne.exploding = true;
+                        successfulMissiles.push(W);
                         weaponsCurrent.splice(w, 1);
                         w--;
                     } else if (PlayerTwo.easyCollide(W.pos, 7) && (W.living >= 10 || W.firedBy == 1)){
                         PlayerTwo.exploding = true;
+                        successfulMissiles.push(W);
                         weaponsCurrent.splice(w, 1);
                         w--;
                     }
                     break;
                 case "Guided3":
+                    W.history.push({pos:W.pos, vel:W.vel});
                     W.freeFall();
                     W.leaveScreen();
                     if (W.checkCollision()){
@@ -973,10 +978,12 @@ function dealWithWeapons(){   //Animation of weapons which are floating around
                     }
                     if (PlayerOne.easyCollide(W.pos, 4) && (W.living >= 10 || W.firedBy == 2)){
                         PlayerOne.exploding = true;
+                        successfulMissiles.push(W);
                         weaponsCurrent.splice(w, 1);
                         w--;
                     } else if (PlayerTwo.easyCollide(W.pos, 4) && (W.living >= 10 || W.firedBy == 1)){
                         PlayerTwo.exploding = true;
+                        successfulMissiles.push(W);
                         weaponsCurrent.splice(w, 1);
                         w--;
                     }
@@ -1610,10 +1617,20 @@ function ScreenOfRestarting(){
     }*/
 };
 
+missile.prototype.backInTime = function(i){
+    this.pos = this.history[i];
+}
+
+weapon.prototype.backInTime = function(i){
+    this.pos = this.history[i].pos;
+    this.vel = this.history[i].vel;
+    this.living--;
+}
+
 async function drawSuccessfulMissiles(){
     for (j = 0; j < successfulMissiles.length; j++){
         for (i = successfulMissiles[j].history.length; i > 0; i--){
-            successfulMissiles[j].pos = successfulMissiles[j].history[i-1];
+            successfulMissiles[j].backInTime(i - 1);
             successfulMissiles[j].draw();
             await sleep(20);
             if (successfulMissiles == []){
