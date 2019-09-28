@@ -1,5 +1,11 @@
-var gameWidth = 800;    //Width of game zone in pixels
-var gameHeight = 600;   //Height of game zone in pixels
+var gameWidth = window.innerWidth;    //Width of game zone in pixels
+var gameHeight = window.innerHeight;   //Height of game zone in pixels
+var universeWidth = 800;    //Width of universe in pixels
+var universeHeight = 600;   //Height of universe in pixels
+var numberofScreensH = Math.ceil(gameWidth / (universeWidth * 2) - 1/2);
+var numberofScreensV = Math.ceil(gameHeight / (universeHeight * 2) - 1/2);
+var hOffset = (gameWidth - universeWidth)/2; // Where the (0,0) for drawing is relative to the canvas coordinates
+var vOffset = (gameHeight - universeHeight)/2; // Where the (0,0) for drawing is relative to the canvas coordinates
 var bgColor = "#000000";  //Color of the sky backdrop
 var starColor = "#FFFFFF";  //Color of the background stars
 var earthColor = "blue";   //Color of the planet in the middle
@@ -30,7 +36,7 @@ var eyesChasing = 1;        //Who the eyes of the Earth are chasing
 var weaponTimer = 0;        //Time until a weapon spawns
 var minWeaponWaitTime = 30; //Minimum wait for a weapon 200 seems reasonable
 var maxWeaponWaitTime = 50;//Max wait for a weapon 500 seems reasonable
-var weaponTypes = ["Mine", "Banana", "Gravity", "Top", "Guided", "Guided3", "Magnet", "Bomb"];       //All the possible weapons
+var weaponTypes = ["Guided","Guided3"];//["Mine", "Banana", "Gravity", "Top", "Guided", "Guided3", "Magnet", "Bomb"];       //All the possible weapons
 /*
 Adding a new weapon:
 Add to weapon types.
@@ -53,7 +59,7 @@ var guidedAgility = 0.1;        //How fast can the guided missile turn
 var magnetStrength = 2;       //How strong the magnet pull is
 var bombTimer = 60;            //How long before bomb detonation
 var blastRadius = 130;          //Of the bomb
-
+var infiniteAmmo = true;
 
 
 
@@ -152,13 +158,13 @@ function vec(x,y){   ///Vector operations   ////////////////////////
         return this.x * v.x + this.y * v.y;
     }
     this.flipHor = function(){
-        return new vec(gameWidth - this.x, this.y);
+        return new vec(universeWidth - this.x, this.y);
     }
     this.flipVer = function(){
-        return new vec(this.x, gameHeight - this.y);
+        return new vec(this.x, universeHeight - this.y);
     }
     this.flipVyH = function(){
-        return new vec(gameWidth - this.x, gameHeight - this.y);
+        return new vec(universeWidth - this.x, universeHeight - this.y);
     }
     this.toAngle = function(){//Returns the angle that the vector is facing towards, in radians. It is measured from "up"=0, and "left"=PI/2
         var answer = Math.atan(this.x/this.y);
@@ -176,44 +182,44 @@ shortestPath = function(v, w){//Finds shortest path from v to w (depends on "mod
     var PossiblePaths = [w.plus(v.op())];
     switch (mode){
             case "Torus":
-                PossiblePaths.push(w.plus(new vec(gameWidth,    0))             .plus(v.op()));
-                PossiblePaths.push(w.plus(new vec(-gameWidth,   0))             .plus(v.op()));
-                PossiblePaths.push(w.plus(new vec(0,            gameHeight))    .plus(v.op()));
-                PossiblePaths.push(w.plus(new vec(0,            -gameHeight))   .plus(v.op()));
-                PossiblePaths.push(w.plus(new vec(gameWidth,    gameHeight))    .plus(v.op()));
-                PossiblePaths.push(w.plus(new vec(gameWidth,    -gameHeight))   .plus(v.op()));
-                PossiblePaths.push(w.plus(new vec(-gameWidth,   gameHeight))    .plus(v.op()));
-                PossiblePaths.push(w.plus(new vec(-gameWidth,   -gameHeight))   .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(universeWidth,    0))             .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(-universeWidth,   0))             .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(0,            universeHeight))    .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(0,            -universeHeight))   .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(universeWidth,    universeHeight))    .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(universeWidth,    -universeHeight))   .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(-universeWidth,   universeHeight))    .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(-universeWidth,   -universeHeight))   .plus(v.op()));
                 break;
             case "InvertX":
-                PossiblePaths.push(w.plus(new vec(gameWidth,    0))             .plus(v.op()));
-                PossiblePaths.push(w.plus(new vec(-gameWidth,   0))             .plus(v.op()));
-                PossiblePaths.push(w.flipHor().plus(new vec(0,            gameHeight))    .plus(v.op()));
-                PossiblePaths.push(w.flipHor().plus(new vec(0,            -gameHeight))   .plus(v.op()));
-                PossiblePaths.push(w.flipHor().plus(new vec(gameWidth,    gameHeight))    .plus(v.op()));
-                PossiblePaths.push(w.flipHor().plus(new vec(gameWidth,    -gameHeight))   .plus(v.op()));
-                PossiblePaths.push(w.flipHor().plus(new vec(-gameWidth,   gameHeight))    .plus(v.op()));
-                PossiblePaths.push(w.flipHor().plus(new vec(-gameWidth,   -gameHeight))   .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(universeWidth,    0))             .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(-universeWidth,   0))             .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(0,            universeHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(0,            -universeHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(universeWidth,    universeHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(universeWidth,    -universeHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(-universeWidth,   universeHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(-universeWidth,   -universeHeight))   .plus(v.op()));
                 break;
             case "InvertY":
-                PossiblePaths.push(w.flipVer().plus(new vec(gameWidth,    0))             .plus(v.op()));
-                PossiblePaths.push(w.flipVer().plus(new vec(-gameWidth,   0))             .plus(v.op()));
-                PossiblePaths.push(w.plus(new vec(0,            gameHeight))    .plus(v.op()));
-                PossiblePaths.push(w.plus(new vec(0,            -gameHeight))   .plus(v.op()));
-                PossiblePaths.push(w.flipVer().plus(new vec(gameWidth,    gameHeight))    .plus(v.op()));
-                PossiblePaths.push(w.flipVer().plus(new vec(gameWidth,    -gameHeight))   .plus(v.op()));
-                PossiblePaths.push(w.flipVer().plus(new vec(-gameWidth,   gameHeight))    .plus(v.op()));
-                PossiblePaths.push(w.flipVer().plus(new vec(-gameWidth,   -gameHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(universeWidth,    0))             .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(-universeWidth,   0))             .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(0,            universeHeight))    .plus(v.op()));
+                PossiblePaths.push(w.plus(new vec(0,            -universeHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(universeWidth,    universeHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(universeWidth,    -universeHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(-universeWidth,   universeHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(-universeWidth,   -universeHeight))   .plus(v.op()));
                 break;
             case "RP2":
-                PossiblePaths.push(w.flipVer().plus(new vec(gameWidth,    0))             .plus(v.op()));
-                PossiblePaths.push(w.flipVer().plus(new vec(-gameWidth,   0))             .plus(v.op()));
-                PossiblePaths.push(w.flipHor().plus(new vec(0,            gameHeight))    .plus(v.op()));
-                PossiblePaths.push(w.flipHor().plus(new vec(0,            -gameHeight))   .plus(v.op()));
-                PossiblePaths.push(w.flipVyH().plus(new vec(gameWidth,    gameHeight))    .plus(v.op()));
-                PossiblePaths.push(w.flipVyH().plus(new vec(gameWidth,    -gameHeight))   .plus(v.op()));
-                PossiblePaths.push(w.flipVyH().plus(new vec(-gameWidth,   gameHeight))    .plus(v.op()));
-                PossiblePaths.push(w.flipVyH().plus(new vec(-gameWidth,   -gameHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(universeWidth,    0))             .plus(v.op()));
+                PossiblePaths.push(w.flipVer().plus(new vec(-universeWidth,   0))             .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(0,            universeHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipHor().plus(new vec(0,            -universeHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipVyH().plus(new vec(universeWidth,    universeHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipVyH().plus(new vec(universeWidth,    -universeHeight))   .plus(v.op()));
+                PossiblePaths.push(w.flipVyH().plus(new vec(-universeWidth,   universeHeight))    .plus(v.op()));
+                PossiblePaths.push(w.flipVyH().plus(new vec(-universeWidth,   -universeHeight))   .plus(v.op()));
                 break;
         }
     var minLength = 1000000;
@@ -231,15 +237,88 @@ shortestPath = function(v, w){//Finds shortest path from v to w (depends on "mod
 
 ////////////Placing a rotated image ////////////////////////////////////////////////////////////////////////
 //VDisplacement from the top, where the center of mass should be
-placeRotated = function(imgObject, position, angle, imgW, imgH, Hdisplace, Vdisplace){   
-    ctx.translate(position.x, position.y);
+
+moveAScreen = function(v, hMove, vMove){ ////Gives the coordinates of the vector v, after translating it to the copy of the universe in coordinates (hMove, vMove)
+    var a = new vec(v.x, v.y);
+    if (isXflipped() && Math.abs(vMove) % 2 == 1){
+        a = a.flipHor();
+    }
+    if (isYflipped() && Math.abs(hMove) % 2 == 1){
+        a = a.flipVer();
+    }
+    a = a.plus(new vec(hMove * universeWidth, vMove * universeHeight));
+    return a;
+}
+
+moveAngleAScreen = function(angle, hMove, vMove){ ////Gives the facing angle, after translating it to the copy of the universe in coordinates (hMove, vMove)
+    var a = angle;
+    if (isXflipped() && Math.abs(vMove) % 2 == 1){
+        a = - a;
+    };
+    if (isYflipped() && Math.abs(hMove) % 2 == 1){
+        a = Math.PI - a;
+    }
+    return a;
+}
+
+placeInCanvas = function(imgObject, position, angle, imgW, imgH, Hdisplace, Vdisplace){ ////Draws something in given coordinates (once)  
+    ctx.translate(position.x + hOffset, position.y + vOffset);
     ctx.rotate(-angle);
     ctx.drawImage(imgObject, -Hdisplace, -Vdisplace, imgW, imgH);
     ctx.rotate(angle);
-    ctx.translate(-position.x, -position.y);
+    ctx.translate(-position.x - hOffset, -position.y - vOffset);
 }
 
-var O = new vec(gameWidth/2, gameHeight/2); //The origin, the planet.
+drawNineTimes = function(imgObject, position, angle, imgW, imgH, Hdisplace, Vdisplace){ ///// Draws something 9 times depending on the surface
+    for (i = - numberofScreensH; i < numberofScreensH + 1; i++){
+        for (j = - numberofScreensV; j < numberofScreensV + 1; j++){
+            placeInCanvas(imgObject, moveAScreen(position,i,j), moveAngleAScreen(angle,i,j), imgW, imgH, Hdisplace, Vdisplace);
+            //console.log("Drawing: "+ moveAScreen(position,i,j));
+        }
+    } 
+    /*
+    var xFlip = isXflipped();
+    var yFlip = isYflipped();
+    placeInCanvas(imgObject, position, angle, imgW, imgH, Hdisplace, Vdisplace);
+    if (!xFlip){
+        placeInCanvas(imgObject, position.plus(new vec(0, universeHeight))  , angle         , imgW, imgH, Hdisplace, Vdisplace); //Down
+        placeInCanvas(imgObject, position.plus(new vec(0, - universeHeight)), angle         , imgW, imgH, Hdisplace, Vdisplace); //Up
+        if (!yFlip){
+            placeInCanvas(imgObject, position.plus(new vec(universeWidth, universeHeight))  , angle         , imgW, imgH, Hdisplace, Vdisplace); //downRight
+            placeInCanvas(imgObject, position.plus(new vec(universeWidth, -universeHeight))  , angle         , imgW, imgH, Hdisplace, Vdisplace); //UpRight
+            placeInCanvas(imgObject, position.plus(new vec(-universeWidth, universeHeight))  , angle         , imgW, imgH, Hdisplace, Vdisplace); //DownLeft
+            placeInCanvas(imgObject, position.plus(new vec(-universeWidth, -universeHeight))  , angle         , imgW, imgH, Hdisplace, Vdisplace); //UpLeft
+        } else {
+            placeInCanvas(imgObject, position.flipVer().plus(new vec(universeWidth, universeHeight))  , Math.PI - angle, imgW, imgH, Hdisplace, Vdisplace);
+            placeInCanvas(imgObject, position.flipVer().plus(new vec(- universeWidth, universeHeight)), Math.PI - angle, imgW, imgH, Hdisplace, Vdisplace);
+            placeInCanvas(imgObject, position.flipVer().plus(new vec(universeWidth,- universeHeight))  , Math.PI - angle, imgW, imgH, Hdisplace, Vdisplace);
+            placeInCanvas(imgObject, position.flipVer().plus(new vec(- universeWidth,- universeHeight)), Math.PI - angle, imgW, imgH, Hdisplace, Vdisplace);
+        }
+    } else {
+        placeInCanvas(imgObject, position.flipHor().plus(new vec(0, universeHeight))  , - angle, imgW, imgH, Hdisplace, Vdisplace);
+        placeInCanvas(imgObject, position.flipHor().plus(new vec(0, - universeHeight)), - angle, imgW, imgH, Hdisplace, Vdisplace);
+        if (!yFlip){
+            placeInCanvas(imgObject, position.flipHor().plus(new vec(universeWidth, universeHeight))  , - angle, imgW, imgH, Hdisplace, Vdisplace);
+            placeInCanvas(imgObject, position.flipHor().plus(new vec(universeWidth, - universeHeight)), - angle, imgW, imgH, Hdisplace, Vdisplace);
+            placeInCanvas(imgObject, position.flipHor().plus(new vec(-universeWidth, universeHeight))  , - angle, imgW, imgH, Hdisplace, Vdisplace);
+            placeInCanvas(imgObject, position.flipHor().plus(new vec(-universeWidth, - universeHeight)), - angle, imgW, imgH, Hdisplace, Vdisplace);
+        } else {
+            placeInCanvas(imgObject, position.flipVer().flipHor().plus(new vec(universeWidth, universeHeight))  , Math.PI + angle, imgW, imgH, Hdisplace, Vdisplace);
+            placeInCanvas(imgObject, position.flipVer().flipHor().plus(new vec(- universeWidth, universeHeight)), Math.PI + angle, imgW, imgH, Hdisplace, Vdisplace);
+            placeInCanvas(imgObject, position.flipVer().flipHor().plus(new vec(universeWidth,- universeHeight))  , Math.PI + angle, imgW, imgH, Hdisplace, Vdisplace);
+            placeInCanvas(imgObject, position.flipVer().flipHor().plus(new vec(- universeWidth,- universeHeight)), Math.PI + angle, imgW, imgH, Hdisplace, Vdisplace);
+        }
+    }
+    if (!yFlip){
+        placeInCanvas(imgObject, position.plus(new vec(universeWidth, 0))  , angle         , imgW, imgH, Hdisplace, Vdisplace);
+        placeInCanvas(imgObject, position.plus(new vec(- universeWidth, 0)), angle         , imgW, imgH, Hdisplace, Vdisplace);
+    } else {
+        placeInCanvas(imgObject, position.flipVer().plus(new vec(universeWidth, 0))  , Math.PI - angle, imgW, imgH, Hdisplace, Vdisplace);
+        placeInCanvas(imgObject, position.flipVer().plus(new vec(- universeWidth, 0)), Math.PI - angle, imgW, imgH, Hdisplace, Vdisplace);
+    }  */
+}
+
+var O = new vec(universeWidth/2, universeHeight/2); //The origin, the planet.
 
 canToEarth = function(v){ //Changes a vector from coordinates with respect to canvas to coordinates w.r.t. Earth
     return v.plus(O.op());
@@ -398,8 +477,8 @@ var starDisplay = []
 
 function getBackground(starNumber){    //Makes a list of star positions
     for (var i = 0; i < starNumber; i++){
-        var x = Math.floor(Math.random()*gameWidth);
-        var y = Math.floor(Math.random()*gameHeight);
+        var x = Math.floor(Math.random()*universeWidth);
+        var y = Math.floor(Math.random()*universeHeight);
         starDisplay.push(new vec(x,y));
     }   
 }
@@ -407,23 +486,23 @@ function getBackground(starNumber){    //Makes a list of star positions
 function flipStarDisplay(HV, LRUD){ ////////////////////// When universe is changed by topologizer, stars flip too //////////////////////
     for (var s = 0; s < starDisplay.length; s++){
         if(HV == "H" && LRUD == "U"){
-            if (starDisplay[s].y < gameHeight/2){
-                starDisplay[s].x = gameWidth - starDisplay[s].x;
+            if (starDisplay[s].y < universeHeight/2){
+                starDisplay[s].x = universeWidth - starDisplay[s].x;
             }
         }
         if(HV == "H" && LRUD == "D"){
-            if (starDisplay[s].y > gameHeight/2){
-                starDisplay[s].x = gameWidth - starDisplay[s].x;
+            if (starDisplay[s].y > universeHeight/2){
+                starDisplay[s].x = universeWidth - starDisplay[s].x;
             }
         }
         if(HV == "V" && LRUD == "L"){
-            if (starDisplay[s].x < gameWidth/2){
-                starDisplay[s].y = gameHeight - starDisplay[s].y;
+            if (starDisplay[s].x < universeWidth/2){
+                starDisplay[s].y = universeHeight - starDisplay[s].y;
             }
         }
         if(HV == "V" && LRUD == "R"){
-            if (starDisplay[s].x > gameWidth/2){
-                starDisplay[s].y = gameHeight - starDisplay[s].y;
+            if (starDisplay[s].x > universeWidth/2){
+                starDisplay[s].y = universeHeight - starDisplay[s].y;
             }
         }
     }
@@ -432,49 +511,119 @@ function flipStarDisplay(HV, LRUD){ ////////////////////// When universe is chan
 function drawBackground(){
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0 , gameWidth, gameHeight);
+    ctx.strokeStyle = "white";
+    ctx.beginPath();           //Draw world boundary
+    ctx.moveTo(hOffset, vOffset);
+    ctx.lineTo(hOffset + universeWidth, vOffset);
+    ctx.lineTo(hOffset + universeWidth, vOffset + universeHeight);
+    ctx.lineTo(hOffset, vOffset + universeHeight);
+    ctx.lineTo(hOffset, vOffset);
+    ctx.stroke();
     var l = starDisplay.length;
     for (var i = 0; i < l; i++){
-        ctx.beginPath();
-        if (i < l/2){
-            ctx.arc(starDisplay[i].x, starDisplay[i].y, 2, 0, 2 * Math.PI);
-        } else {
-            ctx.arc(starDisplay[i].x, starDisplay[i].y, 3, 0, 2 * Math.PI);
-        }
-        //ctx.arc(starDisplay[i].x, starDisplay[i].y, Math.floor(i * 2/l+2), 0, 2 * Math.PI);
-        ctx.fillStyle = starColor;
-        ctx.fill();
-        ctx.stroke();
+        for (screenH = - numberofScreensH; screenH < numberofScreensH + 1; screenH++){
+            for (screenV = - numberofScreensV; screenV < numberofScreensV + 1; screenV++){
+                var newPos = moveAScreen(starDisplay[i], screenH, screenV);
+                ctx.beginPath();
+                if (i < l/2){
+                    ctx.arc(newPos.x + hOffset, newPos.y + vOffset, 2, 0, 2 * Math.PI);
+                } else {
+                    ctx.arc(newPos.x + hOffset, newPos.y + vOffset, 3, 0, 2 * Math.PI);
+                }
+                //ctx.arc(starDisplay[i].x, starDisplay[i].y, Math.floor(i * 2/l+2), 0, 2 * Math.PI);
+                ctx.fillStyle = starColor;
+                ctx.fill();
+                ctx.stroke();
+            }    
+        }   
     }
     /*ctx.beginPath();
     ctx.arc(O.x, O.y, earthRadius, 0, 2 * Math.PI); //draw Earth
     ctx.fillStyle = earthColor;
     ctx.fill();
     ctx.stroke();*/
-    ctx.drawImage(imageEarth, O.x - earthRadius, O.y - earthRadius , 2*earthRadius, 2*earthRadius);
+    //drawNineTimes(imageEarth, O, 0, 2* earthRadius, 2* earthRadius, earthRadius, earthRadius);
+    for (i = - numberofScreensH; i < numberofScreensH + 1; i++){
+        for (j = - numberofScreensV; j < numberofScreensV + 1; j++){
+            var position = O.plus(new vec (i * universeWidth, j * universeHeight));
+            if (isXflipped() && j % 2 != 0){
+                ctx.transform(-1, 0, 0, 1, gameWidth, 0);
+            }
+            if (isYflipped() && i % 2 != 0){
+                ctx.transform(1, 0, 0, -1, 0, gameHeight);
+            }
+            ctx.translate(position.x + hOffset, position.y + vOffset);
+            ctx.drawImage(imageEarth, -earthRadius, -earthRadius, earthRadius * 2, earthRadius * 2);
+            ctx.translate(-position.x - hOffset, -position.y - vOffset);
+            if (isXflipped() && j % 2 != 0){
+                ctx.transform(-1, 0, 0, 1, gameWidth, 0);
+            }   
+            if (isYflipped() && i % 2 != 0){
+                ctx.transform(1, 0, 0, -1, 0, gameHeight);
+            }
+            ctx.transl
+            //console.log("Drawing: "+ moveAScreen(position,i,j));
+        }
+    }
+    //ctx.drawImage(imageEarth, O.x - earthRadius + hOffset, O.y - earthRadius + vOffset, 2*earthRadius, 2*earthRadius);
 }
 
 function drawEyes(){ ////////////////////// THe eyes of Earth /////////////////////////////////
-    ctx.fillStyle = "white";
-    ctx.strokeStyle = "black";
+    var leftEyePosition = new vec(O.x - 32, O.y - 30);
+    var rightEyePosition = new vec(O.x + 32, O.y - 30);
+    var direction = eyesChasing.pos.plus(O.op());
+    direction = direction.times(1/direction.Vlength()*6);
+    var leftPupilPosition = leftEyePosition.plus(direction);
+    var rightPupilPosition = rightEyePosition.plus(direction);
+    for (i = - numberofScreensH; i < numberofScreensH + 1; i++){
+        for (j = - numberofScreensV; j < numberofScreensV + 1; j++){
+            ctx.fillStyle = "white";
+            ctx.strokeStyle = "black";
+            var pos1 = moveAScreen(leftEyePosition, i, j);
+            var pos2 = moveAScreen(rightEyePosition, i, j);
+            var pos1pupil = moveAScreen(leftPupilPosition, i, j);
+            var pos2pupil = moveAScreen(rightPupilPosition, i, j);
+            ctx.beginPath();
+            ctx.arc(pos1.x + hOffset, pos1.y + vOffset, 18, 0, 2 * Math.PI); //draw left Eye
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(pos2.x + hOffset, pos2.y + vOffset, 18, 0, 2 * Math.PI); //draw right Eye
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.arc(pos1pupil.x + hOffset, pos1pupil.y + vOffset, 8, 0, 2 * Math.PI); //draw left Eye
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(pos2pupil.x + hOffset, pos2pupil.y + vOffset, 8, 0, 2 * Math.PI); //draw left Eye
+            ctx.fill();
+            ctx.stroke();
+        }
+    }
+    
+    
+    /*
     ctx.beginPath();
-    ctx.arc(O.x - 32, O.y - 30, 18, 0, 2 * Math.PI); //draw left Eye
+    ctx.arc(O.x - 32 + hOffset, O.y - 30 + vOffset, 18, 0, 2 * Math.PI); //draw left Eye
     ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(O.x + 32, O.y - 30, 18, 0, 2 * Math.PI); //draw left Eye
+    ctx.arc(O.x + 32 + hOffset, O.y - 30 + vOffset, 18, 0, 2 * Math.PI); //draw left Eye
     ctx.fill();
     ctx.stroke();
     var direction = eyesChasing.pos.plus(O.op());
     direction = direction.times(1/direction.Vlength()*6);
     ctx.fillStyle = "black";
     ctx.beginPath();
-    ctx.arc(O.x - 32 + direction.x, O.y - 30 + direction.y, 8, 0, 2 * Math.PI); //draw left Eye
+    ctx.arc(O.x - 32 + direction.x + hOffset, O.y - 30 + direction.y + vOffset, 8, 0, 2 * Math.PI); //draw left Eye
     ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(O.x + 32 + direction.x, O.y - 30 + direction.y, 8, 0, 2 * Math.PI); //draw left Eye
+    ctx.arc(O.x + 32 + direction.x + hOffset, O.y - 30 + direction.y + vOffset, 8, 0, 2 * Math.PI); //draw left Eye
     ctx.fill();
-    ctx.stroke();
+    ctx.stroke();*/
 }
 
 
@@ -550,33 +699,33 @@ flyingThing.prototype.freeFall = function(gMult){ ////////////////////// One ste
 
 flyingThing.prototype.leaveScreen = function(){ ////// THis function could be made prettier using isXflipped(), but eh //////////////
     if(mode == "Torus"){
-        if (this.pos.x > gameWidth){
-            this.pos.x -= gameWidth;
+        if (this.pos.x > universeWidth){
+            this.pos.x -= universeWidth;
         } else if (this.pos.x < 0){
-            this.pos.x += gameWidth;
+            this.pos.x += universeWidth;
         }
-        if (this.pos.y > gameHeight){
-            this.pos.y -= gameHeight;
+        if (this.pos.y > universeHeight){
+            this.pos.y -= universeHeight;
         } else if (this.pos.y < 0){
-            this.pos.y += gameHeight;
+            this.pos.y += universeHeight;
         }    
     } 
     if(mode == "InvertX"){
-        if (this.pos.x > gameWidth){
-            this.pos.x -= gameWidth;
+        if (this.pos.x > universeWidth){
+            this.pos.x -= universeWidth;
         } else if (this.pos.x < 0){
-            this.pos.x += gameWidth;
+            this.pos.x += universeWidth;
         }
-        if (this.pos.y > gameHeight){
-            this.pos.y -= gameHeight;
-            this.pos.x = gameWidth - this.pos.x;
+        if (this.pos.y > universeHeight){
+            this.pos.y -= universeHeight;
+            this.pos.x = universeWidth - this.pos.x;
             this.vel.x = -this.vel.x;
             if (this.constructor == ship){
                 this.facing = -this.facing;
             }
         } else if (this.pos.y < 0){
-            this.pos.y += gameHeight;
-            this.pos.x = gameWidth - this.pos.x;
+            this.pos.y += universeHeight;
+            this.pos.x = universeWidth - this.pos.x;
             this.vel.x = -this.vel.x;
             if (this.constructor == ship){
                 this.facing = -this.facing;
@@ -584,53 +733,53 @@ flyingThing.prototype.leaveScreen = function(){ ////// THis function could be ma
         }    
     }
     if(mode == "InvertY"){
-        if (this.pos.x > gameWidth){
-            this.pos.x -= gameWidth;
-            this.pos.y = gameHeight - this.pos.y;
+        if (this.pos.x > universeWidth){
+            this.pos.x -= universeWidth;
+            this.pos.y = universeHeight - this.pos.y;
             this.vel.y = -this.vel.y;
             if (this.constructor == ship){
-                this.facing = Math.PI/2 -this.facing;
+                this.facing = Math.PI -this.facing;
             }
         } else if (this.pos.x < 0){
-            this.pos.x += gameWidth;
-            this.pos.y = gameHeight - this.pos.y;
+            this.pos.x += universeWidth;
+            this.pos.y = universeHeight - this.pos.y;
             this.vel.y = -this.vel.y;
             if (this.constructor == ship){
-                this.facing = Math.PI/2 -this.facing;
+                this.facing = Math.PI -this.facing;
             }
         }
-        if (this.pos.y > gameHeight){
-            this.pos.y -= gameHeight;
+        if (this.pos.y > universeHeight){
+            this.pos.y -= universeHeight;
         } else if (this.pos.y < 0){
-            this.pos.y += gameHeight;
+            this.pos.y += universeHeight;
         }    
     }
     if(mode == "RP2"){
-        if (this.pos.x > gameWidth){
-            this.pos.x -= gameWidth;
-            this.pos.y = gameHeight - this.pos.y;
+        if (this.pos.x > universeWidth){
+            this.pos.x -= universeWidth;
+            this.pos.y = universeHeight - this.pos.y;
             this.vel.y = -this.vel.y;
             if (this.constructor == ship){
-                this.facing = Math.PI/2 -this.facing;
+                this.facing = Math.PI -this.facing;
             }
         } else if (this.pos.x < 0){
-            this.pos.x += gameWidth;
-            this.pos.y = gameHeight - this.pos.y;
+            this.pos.x += universeWidth;
+            this.pos.y = universeHeight - this.pos.y;
             this.vel.y = -this.vel.y;
             if (this.constructor == ship){
-                this.facing = Math.PI/2 -this.facing;
+                this.facing = Math.PI -this.facing;
             }
         }
-        if (this.pos.y > gameHeight){
-            this.pos.y -= gameHeight;
-            this.pos.x = gameWidth - this.pos.x;
+        if (this.pos.y > universeHeight){
+            this.pos.y -= universeHeight;
+            this.pos.x = universeWidth - this.pos.x;
             this.vel.x = -this.vel.x;
             if (this.constructor == ship){
                 this.facing = -this.facing;
             }
         } else if (this.pos.y < 0){
-            this.pos.y += gameHeight;
-            this.pos.x = gameWidth - this.pos.x;
+            this.pos.y += universeHeight;
+            this.pos.x = universeWidth - this.pos.x;
             this.vel.x = -this.vel.x;
             if (this.constructor == ship){
                 this.facing = -this.facing;
@@ -667,50 +816,50 @@ weapon.prototype.draw = function(){
     switch (this.type){
         case "Mine":
             this.facing += 0.03;
-            placeRotated(imageMine, this.pos, this.facing, 26, 26, 13, 13);
+            drawNineTimes(imageMine, this.pos, this.facing, 26, 26, 13, 13);
             break;
         case "Banana":
-            placeRotated(imageBanana, this.pos, 0, 26, 26, 13, 13);
+            drawNineTimes(imageBanana, this.pos, 0, 26, 26, 13, 13);
             break;
         case "Bomb":
             if (this.living <= bombTimer - 10){
-                placeRotated(imageBomb, this.pos, 0, 26, 26, 13, 13);
-                placeRotated(imageSpark, this.pos.plus(new vec(14 - this.living / 30, -15 + this.living / 30)), this.living, 10, 10, 5, 5);
+                drawNineTimes(imageBomb, this.pos, 0, 26, 26, 13, 13);
+                drawNineTimes(imageSpark, this.pos.plus(new vec(14 - this.living / 30, -15 + this.living / 30)), this.living, 10, 10, 5, 5);
             } else if (this.living <= bombTimer){
                 var bombSize = (this.living - bombTimer) * 1.5 + 41
-                placeRotated(imageBomb, this.pos, 0, bombSize, bombSize, bombSize / 2, bombSize / 2);
-                placeRotated(imageSpark, this.pos.plus(new vec(11, -11)), this.living, 10, 10, 5, 5);
+                drawNineTimes(imageBomb, this.pos, 0, bombSize, bombSize, bombSize / 2, bombSize / 2);
+                drawNineTimes(imageSpark, this.pos.plus(new vec(11, -11)), this.living, 10, 10, 5, 5);
             } else {
-                placeRotated(imageBigExplosion, this.pos, Math.random() * 2 * Math.PI, blastRadius +  20, blastRadius + 20, blastRadius / 2 + 10, blastRadius / 2 + 10);
+                drawNineTimes(imageBigExplosion, this.pos, Math.random() * 2 * Math.PI, blastRadius +  20, blastRadius + 20, blastRadius / 2 + 10, blastRadius / 2 + 10);
             }
             break;
         case "Guided":
             if (this.living < 50){
                 this.facing = this.vel.toAngle();
-                placeRotated(imageMissile, this.pos, this.facing, 17*0.75, 37*0.75, 13, 13);
+                drawNineTimes(imageMissile, this.pos, this.facing, 17*0.75, 37*0.75, 13, 13);
             } else if (this.living == 50) {
                 this.turnSpeed = this.vel.toAngle() - this.facing;
-                placeRotated(imageMissileNoFire, this.pos, this.vel.toAngle(), 17*0.75, 37*0.75, 13, 13);
+                drawNineTimes(imageMissileNoFire, this.pos, this.vel.toAngle(), 17*0.75, 37*0.75, 13, 13);
             } else {
                 this.facing += this.turnSpeed;
-                placeRotated(imageMissileNoFire, this.pos, this.facing, 17*0.75, 37*0.75, 13, 13);
+                drawNineTimes(imageMissileNoFire, this.pos, this.facing, 17*0.75, 37*0.75, 13, 13);
             }
             break;
         case "Guided3":
             this.facing = this.vel.toAngle();
             if (this.living < 50){
-                placeRotated(imageMissile, this.pos, this.facing, 17*0.5, 37*0.5, 13, 13);
+                drawNineTimes(imageMissile, this.pos, this.facing, 17*0.5, 37*0.5, 13, 13);
             } else if (this.living == 50) {
                 this.turnSpeed = this.vel.toAngle() - this.facing;                
-                placeRotated(imageMissileNoFire, this.pos, this.vel.toAngle(), 17*0.5, 37*0.5, 13, 13);
+                drawNineTimes(imageMissileNoFire, this.pos, this.vel.toAngle(), 17*0.5, 37*0.5, 13, 13);
             } else {
                 this.facing += this.turnSpeed;                
-                placeRotated(imageMissileNoFire, this.pos, this.facing, 17*0.5, 37*0.5, 13, 13);
+                drawNineTimes(imageMissileNoFire, this.pos, this.facing, 17*0.5, 37*0.5, 13, 13);
             }
             break;
         case "Gravity":
             this.facing += 0.06;
-            placeRotated(imageGravity, this.pos, this.facing, 26, 26, 13, 13);
+            drawNineTimes(imageGravity, this.pos, this.facing, 26, 26, 13, 13);
             break;
         default:
             break;
@@ -719,8 +868,8 @@ weapon.prototype.draw = function(){
 
 flyingThing.prototype.flip = function(HV, LRUD){
     if(HV == "H" && LRUD == "U"){
-        if (this.pos.y < gameHeight/2){
-            this.pos.x = gameWidth - this.pos.x;
+        if (this.pos.y < universeHeight/2){
+            this.pos.x = universeWidth - this.pos.x;
             this.vel.x = -this.vel.x;
             if(this.constructor == ship){
                 this.facing = -this.facing;
@@ -729,8 +878,8 @@ flyingThing.prototype.flip = function(HV, LRUD){
         }
     }
     if(HV == "H" && LRUD == "D"){
-        if (this.pos.y > gameHeight/2){
-            this.pos.x = gameWidth - this.pos.x;
+        if (this.pos.y > universeHeight/2){
+            this.pos.x = universeWidth - this.pos.x;
             this.vel.x = -this.vel.x;
             if(this.constructor == ship){
                 this.facing = -this.facing;
@@ -739,8 +888,8 @@ flyingThing.prototype.flip = function(HV, LRUD){
         }
     }
     if(HV == "V" && LRUD == "L"){
-        if (this.pos.x < gameWidth/2){
-            this.pos.y = gameHeight - this.pos.y;
+        if (this.pos.x < universeWidth/2){
+            this.pos.y = universeHeight - this.pos.y;
             this.vel.y = -this.vel.y;
             if(this.constructor == ship){
                 this.facing = Math.PI-this.facing;
@@ -749,8 +898,8 @@ flyingThing.prototype.flip = function(HV, LRUD){
         }
     }
     if(HV == "V" && LRUD == "R"){
-        if (this.pos.x > gameWidth/2){
-            this.pos.y = gameHeight - this.pos.y;
+        if (this.pos.x > universeWidth/2){
+            this.pos.y = universeHeight - this.pos.y;
             this.vel.y = -this.vel.y;
             if(this.constructor == ship){
                 this.facing = Math.PI-this.facing;
@@ -789,7 +938,7 @@ function flipScene(HV, LRUD){
                 newMode = "InvertY";
                 break;
         }
-        ctx.drawImage(imageHCrack, 0, 0, gameWidth, gameHeight);
+        ctx.drawImage(imageHCrack, 0, 0, universeWidth, universeHeight);
     }
     if(HV == "V"){
         switch (mode){
@@ -806,7 +955,7 @@ function flipScene(HV, LRUD){
                 newMode = "InvertX";
                 break;
         }
-        ctx.drawImage(imageVCrack, 0, 0, gameWidth, gameHeight);
+        ctx.drawImage(imageVCrack, 0, 0, universeWidth, universeHeight);
     }
     mode = newMode;
 }
@@ -994,7 +1143,7 @@ function dealWithWeapons(){   //Animation of weapons which are floating around
         W.draw();
     }
     if (topologyCounter == 3 || topologyCounter == 1 || topologyCounter == 5){
-        ctx.drawImage(imageLightning, 0, 0, gameWidth, gameHeight);
+        ctx.drawImage(imageLightning, 0, 0, universeWidth, universeHeight);
         topologyCounter --;
     } else if (topologyCounter == 4 || topologyCounter == 6){
         flipAround();
@@ -1046,7 +1195,7 @@ presentBox.prototype = Object.create(flyingThing.prototype);
 presentBox.prototype.constructor = presentBox;
 
 presentBox.prototype.spawn = function(){
-    this.pos = new vec(gameWidth * Math.random(), gameHeight * Math.random());
+    this.pos = new vec(universeWidth * Math.random(), universeHeight * Math.random());
     this.existing = true;
     if (this.checkCollision()){
         this.spawn();
@@ -1066,7 +1215,7 @@ presentBox.prototype.open = function(player){
 
 presentBox.prototype.draw = function(){
     if (this.existing){
-        placeRotated(imageBox, this.pos, 0, 24+this.timer, 24+this.timer, 12+this.timer/2, 12+this.timer/2);
+        drawNineTimes(imageBox, this.pos, 0, 24+this.timer, 24+this.timer, 12+this.timer/2, 12+this.timer/2);
     }
     if (this.growing){  
         if(this.timer < 3){
@@ -1239,44 +1388,44 @@ ship.prototype.draw = function(){
             this.firestate = (this.firestate+1) % 6;
             if (this.firestate < 4){
                 if (this.whichPlayer == 1){
-                    placeRotated(imageShipOverheating1, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                    drawNineTimes(imageShipOverheating1, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
                 } else {
-                    placeRotated(imageShipOverheating1Blue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                    drawNineTimes(imageShipOverheating1Blue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
                 }
             } else {
                 if (this.whichPlayer == 1){
-                    placeRotated(imageShipOverheating2, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                    drawNineTimes(imageShipOverheating2, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
                 } else {
-                    placeRotated(imageShipOverheating2Blue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                    drawNineTimes(imageShipOverheating2Blue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
                 }
             }
         } else if (!keysList[this.keyScheme.thrust]){
             if (this.whichPlayer == 1){
-                    placeRotated(imageShipNoFire, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                    drawNineTimes(imageShipNoFire, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
                 } else {
-                    placeRotated(imageShipNoFireBlue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                    drawNineTimes(imageShipNoFireBlue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
                 }
         } else {
             this.firestate = (this.firestate+1) % 6;
             if (this.firestate < 3){
                 if (this.whichPlayer == 1){
-                    placeRotated(imageShipFire, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                    drawNineTimes(imageShipFire, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
                 } else {
-                    placeRotated(imageShipFireBlue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                    drawNineTimes(imageShipFireBlue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
                 }
             } else {
                 if (this.whichPlayer == 1){
-                    placeRotated(imageShipFireAlt, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                    drawNineTimes(imageShipFireAlt, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
                 } else {
-                    placeRotated(imageShipFireAltBlue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
+                    drawNineTimes(imageShipFireAltBlue, this.pos, this.facing, 17*1.5, 37*1.5, 17*0.75, 37/2);
                 }
             }
         }
     } else {
         if (Math.floor(this.firestate / 3) % 2 == 0){
-            placeRotated(imageExplosion, this.pos, this.facing, 50, 50, 25, 25);
+            drawNineTimes(imageExplosion, this.pos, this.facing, 50, 50, 25, 25);
         } else {
-            placeRotated(imageExplosion, this.pos, this.facing + Math.PI, 50, 50, 25, 25);
+            drawNineTimes(imageExplosion, this.pos, this.facing + Math.PI, 50, 50, 25, 25);
         }
     }
     if (this.otherPlayer().status.magnetized > 0){
@@ -1377,7 +1526,7 @@ ship.prototype.drawTempBar = function(){
     if (this.whichPlayer == 1){
         var xPosition = 10;
     } else {
-        var xPosition = gameWidth-110;
+        var xPosition = universeWidth-110;
     }
     var rate = this.engineTemp/overheatTemp;
     if (rate > 0.8 || this.overheat){
@@ -1388,8 +1537,8 @@ ship.prototype.drawTempBar = function(){
         ctx.fillStyle = "#00DD00";
     }
     ctx.strokeStyle = "#FFFFFF";
-    ctx.strokeRect(xPosition,10,100,10);
-    ctx.fillRect(xPosition,10,100* rate,10);
+    ctx.strokeRect(xPosition + hOffset,10 + vOffset,100,10);
+    ctx.fillRect(xPosition + hOffset,10 + vOffset,100* rate,10);
     ctx.strokeStyle = "#000000";
 }
 
@@ -1409,21 +1558,27 @@ ship.prototype.fireWeapon = function(){
     switch (this.weapon){
         case "Mine":
             weaponsCurrent.push(new weapon(this.pos, new vec(0, 0), "Mine", this.whichPlayer));
-            this.ammo -=1;
+            if (!infiniteAmmo){
+                this.ammo -=1;
+            }
             if (this.ammo == 0){
                 this.weapon = "none";
             }
             break;
         case "Banana":
             weaponsCurrent.push(new weapon(this.pos, new vec(0, 0), "Banana", this.whichPlayer));
-            this.ammo -=1;
+            if (!infiniteAmmo){
+                this.ammo -=1;
+            }
             if (this.ammo == 0){
                 this.weapon = "none";
             }
             break;
         case "Bomb":
             weaponsCurrent.push(new weapon(this.pos, new vec(0, 0), "Bomb", this.whichPlayer));
-            this.ammo -=1;
+            if (!infiniteAmmo){
+                this.ammo -=1;
+            }
             if (this.ammo == 0){
                 this.weapon = "none";
             }
@@ -1433,14 +1588,18 @@ ship.prototype.fireWeapon = function(){
             outSpeed = outSpeed.rot(this.facing);
             outSpeed = outSpeed.plus(this.vel);
             weaponsCurrent.push(new weapon(this.pos, outSpeed, "Gravity", this.whichPlayer));
-            this.ammo -=1;
+            if (!infiniteAmmo){
+                this.ammo -=1;
+            }
             if (this.ammo == 0){
                 this.weapon = "none";
             }
             break;
         case "Top":
             topologyCounter = 6;
-            this.weapon = "none";
+            if (!infiniteAmmo){
+                this.weapon = "none";
+            }
             break;
         case "Guided":
             var outSpeed = new vec(0, -projectileSpeed);
@@ -1448,7 +1607,9 @@ ship.prototype.fireWeapon = function(){
             outSpeed = outSpeed.plus(this.vel);
             weaponsCurrent.push(new weapon(this.pos, outSpeed, "Guided", this.whichPlayer));
             this.ammo = 0;
-            this.weapon = "none";
+            if (!infiniteAmmo){
+                this.weapon = "none";
+            }
             break;
         case "Guided3":
             var outSpeed = new vec(0, -projectileSpeed / 1.5);
@@ -1462,12 +1623,16 @@ ship.prototype.fireWeapon = function(){
             var outSpeed2 = outSpeed.plus(this.vel);
             weaponsCurrent.push(new weapon(this.pos, outSpeed2, "Guided3", this.whichPlayer));
             this.ammo = 0;
-            this.weapon = "none";
+            if (!infiniteAmmo){
+                this.weapon = "none";
+            }
             break;
         case "Magnet":
             this.otherPlayer().status.magnetized = effectDuration;
             this.otherPlayer().orbiting = false;
-            this.ammo -=1;
+            if (!infiniteAmmo){
+                this.ammo -=1;
+            }
             if (this.ammo == 0){
                 this.weapon = "none";
             }
@@ -1482,65 +1647,65 @@ ship.prototype.drawCurrentWeapon = function(){
     if (this.whichPlayer == 1){
         var xPosition = 130;
     } else {
-        var xPosition = gameWidth-160;
+        var xPosition = universeWidth-160;
     }
     ctx.strokeStyle = "#FFFFFF";
-    ctx.strokeRect(xPosition,10,30,30);
+    ctx.strokeRect(xPosition + hOffset,10 + vOffset,30,30);
     ctx.strokeStyle = "#000000";
     switch (this.weapon){
         case "Mine":
-            ctx.drawImage(imageMine, xPosition, 10, 30, 30);
+            ctx.drawImage(imageMine, xPosition + hOffset, 10 + vOffset, 30, 30);
             ctx.fillStyle = "red";
             ctx.font = "bolder 15px Arial Black";
             ctx.textAlign = "left";
-            ctx.fillText(this.ammo, xPosition + 2, 23);
+            ctx.fillText(this.ammo, xPosition + 2 + hOffset, 23 + vOffset);
             break;
         case "Banana":
-            ctx.drawImage(imageBanana, xPosition, 10, 30, 30);
+            ctx.drawImage(imageBanana, xPosition + hOffset, 10 + vOffset, 30, 30);
             ctx.fillStyle = "red";
             ctx.font = "bolder 15px Arial Black";
             ctx.textAlign = "left";
-            ctx.fillText(this.ammo, xPosition + 2, 23);
+            ctx.fillText(this.ammo, xPosition + 2 + hOffset, 23 + vOffset);
             break;
         case "Gravity":
-            ctx.drawImage(imageGravity, xPosition, 10, 30, 30);
+            ctx.drawImage(imageGravity, xPosition + hOffset, 10 + vOffset, 30, 30);
             ctx.fillStyle = "red";
             ctx.font = "bolder 15px Arial Black";
             ctx.textAlign = "left";
-            ctx.fillText(this.ammo, xPosition + 2, 23);
+            ctx.fillText(this.ammo, xPosition + 2 + hOffset, 23 + vOffset);
             break;
         case "Bomb":
-            ctx.drawImage(imageBomb, xPosition, 10, 30, 30);
+            ctx.drawImage(imageBomb, xPosition + hOffset, 10 + vOffset, 30, 30);
             ctx.fillStyle = "red";
             ctx.font = "bolder 15px Arial Black";
             ctx.textAlign = "left";
-            ctx.fillText(this.ammo, xPosition + 2, 23);
+            ctx.fillText(this.ammo, xPosition + 2 + hOffset, 23 + vOffset);
             break;
         case "Top":
-            ctx.drawImage(imageTop, xPosition, 10, 30, 30);
+            ctx.drawImage(imageTop, xPosition + hOffset, 10 + vOffset, 30, 30);
             break;
         case "Guided":
-            ctx.drawImage(imageMissile, xPosition + 8, 10, 14, 30);/*
+            ctx.drawImage(imageMissile, xPosition + 8 + hOffset, 10 + vOffset, 14, 30);/*
             ctx.fillStyle = "yellow";
             ctx.font = "bolder 15px Arial Black";
             ctx.textAlign = "left";
             ctx.fillText("1", xPosition + 1, 23);*/
             break;
          case "Guided3":
-            ctx.drawImage(imageMissile, xPosition     , 12, 12, 27);
-            ctx.drawImage(imageMissile, xPosition + 8 , 12, 12, 27);
-            ctx.drawImage(imageMissile, xPosition + 16, 12, 12, 27);/*
+            ctx.drawImage(imageMissile, xPosition  + hOffset    , 12 + vOffset, 12, 27);
+            ctx.drawImage(imageMissile, xPosition + 8  + hOffset, 12 + vOffset, 12, 27);
+            ctx.drawImage(imageMissile, xPosition + 16 + hOffset, 12 + vOffset, 12, 27);/*
             ctx.fillStyle = "yellow";
             ctx.font = "bolder 15px Arial Black";
             ctx.textAlign = "left";
             ctx.fillText("1", xPosition + 1, 23);*/
             break;
         case "Magnet":
-            ctx.drawImage(imageMagnet, xPosition, 10, 30, 30);
+            ctx.drawImage(imageMagnet, xPosition + hOffset, 10 + vOffset, 30, 30);
             ctx.fillStyle = "red";
             ctx.font = "bolder 15px Arial Black";
             ctx.textAlign = "left";
-            ctx.fillText(this.ammo, xPosition + 2, 23);
+            ctx.fillText(this.ammo, xPosition + 2 + hOffset, 23 + vOffset);
             break;
         default:
             break;
@@ -1562,16 +1727,63 @@ function missile(pos, vel, who){
 missile.prototype = Object.create(flyingThing.prototype);
 missile.prototype.constructor = missile;
 
-missile.prototype.draw = function(){
+function drawMissile(x,y){
     ctx.beginPath();
-    ctx.arc(this.pos.x, this.pos.y, 3, 0, 2 * Math.PI);
+    ctx.arc(x + hOffset, y + vOffset, 3, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.stroke();
+}
+
+missile.prototype.draw = function(){
     if (this.firedBy == 1){
         ctx.fillStyle = "red";
     } else {
         ctx.fillStyle = "#00FF00";
     }
+    drawMissile(this.pos.x, this.pos.y);
+    /*ctx.beginPath();
+    ctx.arc(this.pos.x + hOffset, this.pos.y + vOffset, 3, 0, 2 * Math.PI);
     ctx.fill();
-    ctx.stroke();
+    ctx.stroke();*/
+     ///// Draws something 9 times depending on the surface
+    var xFlip = isXflipped();
+    var yFlip = isYflipped();
+    if (!xFlip){
+        drawMissile(this.pos.x, this.pos.y + universeHeight); //Down
+        drawMissile(this.pos.x, this.pos.y - universeHeight); //Up
+        if (!yFlip){
+            drawMissile(this.pos.x + universeWidth, this.pos.y + universeHeight);
+            drawMissile(this.pos.x - universeWidth, this.pos.y + universeHeight);
+            drawMissile(this.pos.x + universeWidth, this.pos.y - universeHeight);
+            drawMissile(this.pos.x - universeWidth, this.pos.y - universeHeight);
+        } else {
+            drawMissile(this.pos.x + universeWidth, - this.pos.y + 2 * universeHeight);
+            drawMissile(this.pos.x - universeWidth, - this.pos.y + 2 * universeHeight);
+            drawMissile(this.pos.x + universeWidth, - this.pos.y);
+            drawMissile(this.pos.x - universeWidth, - this.pos.y);
+        }
+    } else {
+        drawMissile(- this.pos.x + universeWidth, this.pos.y + universeHeight); //Down
+        drawMissile(- this.pos.x + universeWidth, this.pos.y - universeHeight); //Up
+        if (!yFlip){
+            drawMissile(- this.pos.x + 2 * universeWidth, this.pos.y + universeHeight);
+            drawMissile(- this.pos.x                    , this.pos.y + universeHeight);
+            drawMissile(- this.pos.x + 2 * universeWidth, this.pos.y - universeHeight);
+            drawMissile(- this.pos.x                    , this.pos.y - universeHeight);
+        } else {
+            drawMissile(- this.pos.x + 2 * universeWidth, - this.pos.y + 2 * universeHeight);
+            drawMissile(- this.pos.x                    , - this.pos.y + 2 * universeHeight);
+            drawMissile(- this.pos.x + 2 * universeWidth, - this.pos.y);
+            drawMissile(- this.pos.x                    , - this.pos.y);
+        }
+    }
+    if (!yFlip){
+        drawMissile(this.pos.x + universeWidth, this.pos.y);
+        drawMissile(this.pos.x - universeWidth, this.pos.y);
+    } else {
+        drawMissile(this.pos.x + universeWidth, - this.pos.y + universeHeight);
+        drawMissile(this.pos.x - universeWidth, - this.pos.y + universeHeight);
+    }
 }
 
 missile.prototype.takeStep = function(){
@@ -1618,26 +1830,41 @@ function ScreenOfRestarting(){
 };
 
 missile.prototype.backInTime = function(i){
-    this.pos = this.history[i];
+    this.pos = this.history[this.history.length - 1];
+    this.history.splice(this.history.length - 1);
 }
 
-weapon.prototype.backInTime = function(i){
-    this.pos = this.history[i].pos;
-    this.vel = this.history[i].vel;
+weapon.prototype.backInTime = function(){
+    this.pos = this.history[this.history.length - 1].pos;
+    this.vel = this.history[this.history.length - 1].vel;
+    this.history.splice(this.history.length - 1);
     this.living--;
 }
 
 async function drawSuccessfulMissiles(){
-    for (j = 0; j < successfulMissiles.length; j++){
-        for (i = successfulMissiles[j].history.length; i > 0; i--){
-            successfulMissiles[j].backInTime(i - 1);
-            successfulMissiles[j].draw();
-            await sleep(20);
-            if (successfulMissiles == []){
-                i = 0;
+    while (successfulMissiles.length > 0){
+        for (missileCounter = 0; missileCounter < successfulMissiles.length; missileCounter++){
+            if (successfulMissiles[missileCounter].history.length == 0){
+                successfulMissiles.splice(missileCounter);
+                missileCounter -= 1;
+            } else {
+                successfulMissiles[missileCounter].backInTime();
+                successfulMissiles[missileCounter].draw();
             }
         }
+        await sleep(20);
     }
+    /*
+    for (missileCounter = 0; missileCounter < successfulMissiles.length; missileCounter++){
+        for (timeCounter = successfulMissiles[missileCounter].history.length; timeCounter > 0; timeCounter--){
+            successfulMissiles[missileCounter].backInTime(timeCounter - 1);
+            successfulMissiles[missileCounter].draw();
+            await sleep(20);
+            if (successfulMissiles == []){
+                timeCounter = 0;
+            }
+        }
+    }*/
 }
 
 function gameOver(){
@@ -1726,8 +1953,8 @@ function startTheGame(){
     successfulMissiles = [];
     weaponsCurrent = [];
     clearSpecialEffects();
-    PlayerOne = new ship(new vec(150,300), 1, Math.PI, p1Keys);
-    PlayerTwo = new ship(new vec(650,300), 2, 0, p2Keys);
+    PlayerOne = new ship(new vec(universeWidth/4,300), 1, Math.PI, p1Keys);
+    PlayerTwo = new ship(new vec(3*universeWidth/4,300), 2, 0, p2Keys);
     PlayerOne.setAngularSpeed();
     PlayerTwo.setAngularSpeed();
     if (Math.floor(Math.random()*2) > 0){
@@ -1748,11 +1975,11 @@ function showScore(){
     ctx.font = "20px Bungee Shade";
     ctx.textAlign = "center";
     ctx.fillStyle = "yellow";
-    ctx.fillText(score[0], gameWidth/2-30, 25);
+    ctx.fillText(score[0], universeWidth/2-30 + hOffset, 25 + vOffset);
     ctx.fillStyle = "turquoise";
-    ctx.fillText(score[1], gameWidth/2+30, 25);
+    ctx.fillText(score[1], universeWidth/2+30 + hOffset, 25 + vOffset);
     ctx.fillStyle = "white";
-    ctx.fillText("-", gameWidth/2, 25);
+    ctx.fillText("-", universeWidth/2 + hOffset, 25 + vOffset);
 }
 
 function showMenu(){
@@ -1985,6 +2212,8 @@ window.onload = demo();
 
 
 /*
+Do division instead of substraction in the function LeaveScreen
+
 Add googly eyes to planet - DONE
 
 Start menu - DONE
@@ -2013,6 +2242,9 @@ Make box have attractive animation xx
 Make box open
 
 KillCam
+
+Flip pictures when they need ot be flipped.
+Topologizer rays are looking wrong
 
 
 */
