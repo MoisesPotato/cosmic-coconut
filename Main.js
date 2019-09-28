@@ -2,6 +2,8 @@ var gameWidth = window.innerWidth;    //Width of game zone in pixels
 var gameHeight = window.innerHeight;   //Height of game zone in pixels
 var universeWidth = 800;    //Width of universe in pixels
 var universeHeight = 600;   //Height of universe in pixels
+var numberofScreensH = Math.ceil(gameWidth / (universeWidth * 2) - 1/2);
+var numberofScreensV = Math.ceil(gameHeight / (universeHeight * 2) - 1/2);
 var hOffset = (gameWidth - universeWidth)/2; // Where the (0,0) for drawing is relative to the canvas coordinates
 var vOffset = (gameHeight - universeHeight)/2; // Where the (0,0) for drawing is relative to the canvas coordinates
 var bgColor = "#000000";  //Color of the sky backdrop
@@ -34,7 +36,7 @@ var eyesChasing = 1;        //Who the eyes of the Earth are chasing
 var weaponTimer = 0;        //Time until a weapon spawns
 var minWeaponWaitTime = 30; //Minimum wait for a weapon 200 seems reasonable
 var maxWeaponWaitTime = 50;//Max wait for a weapon 500 seems reasonable
-var weaponTypes = ["Mine", "Banana", "Gravity", "Top", "Guided", "Guided3", "Magnet", "Bomb"];       //All the possible weapons
+var weaponTypes = ["Guided","Guided3"];//["Mine", "Banana", "Gravity", "Top", "Guided", "Guided3", "Magnet", "Bomb"];       //All the possible weapons
 /*
 Adding a new weapon:
 Add to weapon types.
@@ -57,7 +59,7 @@ var guidedAgility = 0.1;        //How fast can the guided missile turn
 var magnetStrength = 2;       //How strong the magnet pull is
 var bombTimer = 60;            //How long before bomb detonation
 var blastRadius = 130;          //Of the bomb
-
+var infiniteAmmo = true;
 
 
 
@@ -236,6 +238,29 @@ shortestPath = function(v, w){//Finds shortest path from v to w (depends on "mod
 ////////////Placing a rotated image ////////////////////////////////////////////////////////////////////////
 //VDisplacement from the top, where the center of mass should be
 
+moveAScreen = function(v, hMove, vMove){ ////Gives the coordinates of the vector v, after translating it to the copy of the universe in coordinates (hMove, vMove)
+    var a = new vec(v.x, v.y);
+    if (isXflipped() && Math.abs(vMove) % 2 == 1){
+        a = a.flipHor();
+    }
+    if (isYflipped() && Math.abs(hMove) % 2 == 1){
+        a = a.flipVer();
+    }
+    a = a.plus(new vec(hMove * universeWidth, vMove * universeHeight));
+    return a;
+}
+
+moveAngleAScreen = function(angle, hMove, vMove){ ////Gives the facing angle, after translating it to the copy of the universe in coordinates (hMove, vMove)
+    var a = angle;
+    if (isXflipped() && Math.abs(vMove) % 2 == 1){
+        a = - a;
+    };
+    if (isYflipped() && Math.abs(hMove) % 2 == 1){
+        a = Math.PI - a;
+    }
+    return a;
+}
+
 placeInCanvas = function(imgObject, position, angle, imgW, imgH, Hdisplace, Vdisplace){ ////Draws something in given coordinates (once)  
     ctx.translate(position.x + hOffset, position.y + vOffset);
     ctx.rotate(-angle);
@@ -245,6 +270,13 @@ placeInCanvas = function(imgObject, position, angle, imgW, imgH, Hdisplace, Vdis
 }
 
 drawNineTimes = function(imgObject, position, angle, imgW, imgH, Hdisplace, Vdisplace){ ///// Draws something 9 times depending on the surface
+    for (i = - numberofScreensH; i < numberofScreensH + 1; i++){
+        for (j = - numberofScreensV; j < numberofScreensV + 1; j++){
+            placeInCanvas(imgObject, moveAScreen(position,i,j), moveAngleAScreen(angle,i,j), imgW, imgH, Hdisplace, Vdisplace);
+            //console.log("Drawing: "+ moveAScreen(position,i,j));
+        }
+    } 
+    /*
     var xFlip = isXflipped();
     var yFlip = isYflipped();
     placeInCanvas(imgObject, position, angle, imgW, imgH, Hdisplace, Vdisplace);
@@ -283,7 +315,7 @@ drawNineTimes = function(imgObject, position, angle, imgW, imgH, Hdisplace, Vdis
     } else {
         placeInCanvas(imgObject, position.flipVer().plus(new vec(universeWidth, 0))  , Math.PI - angle, imgW, imgH, Hdisplace, Vdisplace);
         placeInCanvas(imgObject, position.flipVer().plus(new vec(- universeWidth, 0)), Math.PI - angle, imgW, imgH, Hdisplace, Vdisplace);
-    }  
+    }  */
 }
 
 var O = new vec(universeWidth/2, universeHeight/2); //The origin, the planet.
@@ -479,30 +511,100 @@ function flipStarDisplay(HV, LRUD){ ////////////////////// When universe is chan
 function drawBackground(){
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0 , gameWidth, gameHeight);
+    ctx.strokeStyle = "white";
+    ctx.beginPath();           //Draw world boundary
+    ctx.moveTo(hOffset, vOffset);
+    ctx.lineTo(hOffset + universeWidth, vOffset);
+    ctx.lineTo(hOffset + universeWidth, vOffset + universeHeight);
+    ctx.lineTo(hOffset, vOffset + universeHeight);
+    ctx.lineTo(hOffset, vOffset);
+    ctx.stroke();
     var l = starDisplay.length;
     for (var i = 0; i < l; i++){
-        ctx.beginPath();
-        if (i < l/2){
-            ctx.arc(starDisplay[i].x + hOffset, starDisplay[i].y + vOffset, 2, 0, 2 * Math.PI);
-        } else {
-            ctx.arc(starDisplay[i].x + hOffset, starDisplay[i].y + vOffset, 3, 0, 2 * Math.PI);
-        }
-        //ctx.arc(starDisplay[i].x, starDisplay[i].y, Math.floor(i * 2/l+2), 0, 2 * Math.PI);
-        ctx.fillStyle = starColor;
-        ctx.fill();
-        ctx.stroke();
+        for (screenH = - numberofScreensH; screenH < numberofScreensH + 1; screenH++){
+            for (screenV = - numberofScreensV; screenV < numberofScreensV + 1; screenV++){
+                var newPos = moveAScreen(starDisplay[i], screenH, screenV);
+                ctx.beginPath();
+                if (i < l/2){
+                    ctx.arc(newPos.x + hOffset, newPos.y + vOffset, 2, 0, 2 * Math.PI);
+                } else {
+                    ctx.arc(newPos.x + hOffset, newPos.y + vOffset, 3, 0, 2 * Math.PI);
+                }
+                //ctx.arc(starDisplay[i].x, starDisplay[i].y, Math.floor(i * 2/l+2), 0, 2 * Math.PI);
+                ctx.fillStyle = starColor;
+                ctx.fill();
+                ctx.stroke();
+            }    
+        }   
     }
     /*ctx.beginPath();
     ctx.arc(O.x, O.y, earthRadius, 0, 2 * Math.PI); //draw Earth
     ctx.fillStyle = earthColor;
     ctx.fill();
     ctx.stroke();*/
-    ctx.drawImage(imageEarth, O.x - earthRadius + hOffset, O.y - earthRadius + vOffset, 2*earthRadius, 2*earthRadius);
+    //drawNineTimes(imageEarth, O, 0, 2* earthRadius, 2* earthRadius, earthRadius, earthRadius);
+    for (i = - numberofScreensH; i < numberofScreensH + 1; i++){
+        for (j = - numberofScreensV; j < numberofScreensV + 1; j++){
+            var position = O.plus(new vec (i * universeWidth, j * universeHeight));
+            if (isXflipped() && j % 2 != 0){
+                ctx.transform(-1, 0, 0, 1, gameWidth, 0);
+            }
+            if (isYflipped() && i % 2 != 0){
+                ctx.transform(1, 0, 0, -1, 0, gameHeight);
+            }
+            ctx.translate(position.x + hOffset, position.y + vOffset);
+            ctx.drawImage(imageEarth, -earthRadius, -earthRadius, earthRadius * 2, earthRadius * 2);
+            ctx.translate(-position.x - hOffset, -position.y - vOffset);
+            if (isXflipped() && j % 2 != 0){
+                ctx.transform(-1, 0, 0, 1, gameWidth, 0);
+            }   
+            if (isYflipped() && i % 2 != 0){
+                ctx.transform(1, 0, 0, -1, 0, gameHeight);
+            }
+            ctx.transl
+            //console.log("Drawing: "+ moveAScreen(position,i,j));
+        }
+    }
+    //ctx.drawImage(imageEarth, O.x - earthRadius + hOffset, O.y - earthRadius + vOffset, 2*earthRadius, 2*earthRadius);
 }
 
 function drawEyes(){ ////////////////////// THe eyes of Earth /////////////////////////////////
-    ctx.fillStyle = "white";
-    ctx.strokeStyle = "black";
+    var leftEyePosition = new vec(O.x - 32, O.y - 30);
+    var rightEyePosition = new vec(O.x + 32, O.y - 30);
+    var direction = eyesChasing.pos.plus(O.op());
+    direction = direction.times(1/direction.Vlength()*6);
+    var leftPupilPosition = leftEyePosition.plus(direction);
+    var rightPupilPosition = rightEyePosition.plus(direction);
+    for (i = - numberofScreensH; i < numberofScreensH + 1; i++){
+        for (j = - numberofScreensV; j < numberofScreensV + 1; j++){
+            ctx.fillStyle = "white";
+            ctx.strokeStyle = "black";
+            var pos1 = moveAScreen(leftEyePosition, i, j);
+            var pos2 = moveAScreen(rightEyePosition, i, j);
+            var pos1pupil = moveAScreen(leftPupilPosition, i, j);
+            var pos2pupil = moveAScreen(rightPupilPosition, i, j);
+            ctx.beginPath();
+            ctx.arc(pos1.x + hOffset, pos1.y + vOffset, 18, 0, 2 * Math.PI); //draw left Eye
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(pos2.x + hOffset, pos2.y + vOffset, 18, 0, 2 * Math.PI); //draw right Eye
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.arc(pos1pupil.x + hOffset, pos1pupil.y + vOffset, 8, 0, 2 * Math.PI); //draw left Eye
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(pos2pupil.x + hOffset, pos2pupil.y + vOffset, 8, 0, 2 * Math.PI); //draw left Eye
+            ctx.fill();
+            ctx.stroke();
+        }
+    }
+    
+    
+    /*
     ctx.beginPath();
     ctx.arc(O.x - 32 + hOffset, O.y - 30 + vOffset, 18, 0, 2 * Math.PI); //draw left Eye
     ctx.fill();
@@ -521,7 +623,7 @@ function drawEyes(){ ////////////////////// THe eyes of Earth //////////////////
     ctx.beginPath();
     ctx.arc(O.x + 32 + direction.x + hOffset, O.y - 30 + direction.y + vOffset, 8, 0, 2 * Math.PI); //draw left Eye
     ctx.fill();
-    ctx.stroke();
+    ctx.stroke();*/
 }
 
 
@@ -1456,21 +1558,27 @@ ship.prototype.fireWeapon = function(){
     switch (this.weapon){
         case "Mine":
             weaponsCurrent.push(new weapon(this.pos, new vec(0, 0), "Mine", this.whichPlayer));
-            this.ammo -=1;
+            if (!infiniteAmmo){
+                this.ammo -=1;
+            }
             if (this.ammo == 0){
                 this.weapon = "none";
             }
             break;
         case "Banana":
             weaponsCurrent.push(new weapon(this.pos, new vec(0, 0), "Banana", this.whichPlayer));
-            this.ammo -=1;
+            if (!infiniteAmmo){
+                this.ammo -=1;
+            }
             if (this.ammo == 0){
                 this.weapon = "none";
             }
             break;
         case "Bomb":
             weaponsCurrent.push(new weapon(this.pos, new vec(0, 0), "Bomb", this.whichPlayer));
-            this.ammo -=1;
+            if (!infiniteAmmo){
+                this.ammo -=1;
+            }
             if (this.ammo == 0){
                 this.weapon = "none";
             }
@@ -1480,22 +1588,28 @@ ship.prototype.fireWeapon = function(){
             outSpeed = outSpeed.rot(this.facing);
             outSpeed = outSpeed.plus(this.vel);
             weaponsCurrent.push(new weapon(this.pos, outSpeed, "Gravity", this.whichPlayer));
-            this.ammo -=1;
+            if (!infiniteAmmo){
+                this.ammo -=1;
+            }
             if (this.ammo == 0){
                 this.weapon = "none";
             }
             break;
         case "Top":
             topologyCounter = 6;
-            this.weapon = "none";
+            if (!infiniteAmmo){
+                this.weapon = "none";
+            }
             break;
         case "Guided":
             var outSpeed = new vec(0, -projectileSpeed);
             outSpeed = outSpeed.rot(this.facing);
             outSpeed = outSpeed.plus(this.vel);
             weaponsCurrent.push(new weapon(this.pos, outSpeed, "Guided", this.whichPlayer));
-            //this.ammo = 0;
-            //this.weapon = "none";
+            this.ammo = 0;
+            if (!infiniteAmmo){
+                this.weapon = "none";
+            }
             break;
         case "Guided3":
             var outSpeed = new vec(0, -projectileSpeed / 1.5);
@@ -1509,12 +1623,16 @@ ship.prototype.fireWeapon = function(){
             var outSpeed2 = outSpeed.plus(this.vel);
             weaponsCurrent.push(new weapon(this.pos, outSpeed2, "Guided3", this.whichPlayer));
             this.ammo = 0;
-            this.weapon = "none";
+            if (!infiniteAmmo){
+                this.weapon = "none";
+            }
             break;
         case "Magnet":
             this.otherPlayer().status.magnetized = effectDuration;
             this.otherPlayer().orbiting = false;
-            this.ammo -=1;
+            if (!infiniteAmmo){
+                this.ammo -=1;
+            }
             if (this.ammo == 0){
                 this.weapon = "none";
             }
@@ -1712,26 +1830,41 @@ function ScreenOfRestarting(){
 };
 
 missile.prototype.backInTime = function(i){
-    this.pos = this.history[i];
+    this.pos = this.history[this.history.length - 1];
+    this.history.splice(this.history.length - 1);
 }
 
-weapon.prototype.backInTime = function(i){
-    this.pos = this.history[i].pos;
-    this.vel = this.history[i].vel;
+weapon.prototype.backInTime = function(){
+    this.pos = this.history[this.history.length - 1].pos;
+    this.vel = this.history[this.history.length - 1].vel;
+    this.history.splice(this.history.length - 1);
     this.living--;
 }
 
 async function drawSuccessfulMissiles(){
-    for (j = 0; j < successfulMissiles.length; j++){
-        for (i = successfulMissiles[j].history.length; i > 0; i--){
-            successfulMissiles[j].backInTime(i - 1);
-            successfulMissiles[j].draw();
-            await sleep(20);
-            if (successfulMissiles == []){
-                i = 0;
+    while (successfulMissiles.length > 0){
+        for (missileCounter = 0; missileCounter < successfulMissiles.length; missileCounter++){
+            if (successfulMissiles[missileCounter].history.length == 0){
+                successfulMissiles.splice(missileCounter);
+                missileCounter -= 1;
+            } else {
+                successfulMissiles[missileCounter].backInTime();
+                successfulMissiles[missileCounter].draw();
             }
         }
+        await sleep(20);
     }
+    /*
+    for (missileCounter = 0; missileCounter < successfulMissiles.length; missileCounter++){
+        for (timeCounter = successfulMissiles[missileCounter].history.length; timeCounter > 0; timeCounter--){
+            successfulMissiles[missileCounter].backInTime(timeCounter - 1);
+            successfulMissiles[missileCounter].draw();
+            await sleep(20);
+            if (successfulMissiles == []){
+                timeCounter = 0;
+            }
+        }
+    }*/
 }
 
 function gameOver(){
@@ -2109,6 +2242,9 @@ Make box have attractive animation xx
 Make box open
 
 KillCam
+
+Flip pictures when they need ot be flipped.
+Topologizer rays are looking wrong
 
 
 */
