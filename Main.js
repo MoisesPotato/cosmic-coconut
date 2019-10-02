@@ -6,7 +6,6 @@ if (typeof window === "undefined"){
 }
 var then;                   //Time of last animation frame
 
-
 /*global window, document, Image*/
 
 /* jshint -W030, -W119*/
@@ -1852,12 +1851,6 @@ ship.prototype.drawCurrentWeapon = function (c, g, imgList, u) {
 //    return myNetwork;
 //}
 
-if (!displayingGraphics){
-    var main = require("./Main.js");
-    var network = require("./Network.js");
-    var numberOfInputs = 6;
-}
-
 function synapse(toNeuron, w){
     this.weight = w;
     this.to = toNeuron;
@@ -1890,7 +1883,6 @@ layer.prototype.connect = function(aLayer, weights){
     for (var inNeuron in this.neuronList){
         for (var outNeuron in aLayer.neuronList){
             this.neuronList[inNeuron].connect(aLayer.neuronList[outNeuron], weights);
-            //console.log(this.neuronList[inNeuron].inputs);
         }
     }
 };
@@ -1926,13 +1918,12 @@ network.prototype.clone = function(){
 
 network.prototype.perturb = function(rate){
     var theNewNetwork = this.clone();
-    console.log(theNewNetwork);
     for(var layerCount in this.layers){
         var currentNeuronList = theNewNetwork.layers[layerCount].neuronList;
         for(var neuronCount in currentNeuronList){
             var currentInputList = currentNeuronList[neuronCount].inputs;
             for(var inputCount in currentInputList){
-                currentInputList[inputCount] = currentInputList[inputCount] + Math.random() * rate;
+                currentInputList[inputCount] = squash(currentInputList[inputCount] + Math.random() * rate);
             }
         }
     }
@@ -1992,8 +1983,177 @@ network.prototype.activate = function(inputArray){
 
 
 
+//var u = new main.universeInfo();
+//var status = new main.gameStatus();
+//var ship = main.ship;
+//u.Player = new main.playerTypes(u);
+//u.Player.One.takeStep(u, status);
+//console.log(u.Player.One);
 
 
+function playGame(brain1, brain2){
+    var u = new universeInfo();
+    u.explosionLength = 0;
+    var status = new gameStatus();
+    u.Player = new playerTypes(u);
+    u.Player.One.whoPlaying = brain1;
+    u.Player.Two.whoPlaying = brain2;
+    status.playing = true;
+    status.winner = "none";
+    while(status.playing){
+        gameStep(u,status);
+    }
+    if (status.winner == "P1"){
+        return 1;
+    } else if (status.winner == "P2"){
+        return -1;
+    } else {
+        return 0;
+    }
+}
+
+function gameStep(u, status){
+        u.Player.One.makeDecision(u.Player.One.whoPlaying, status, u);
+        u.Player.Two.makeDecision(u.Player.Two.whoPlaying, status, u);
+        u.Player.One.takeStep(u, status);
+        u.Player.Two.takeStep(u, status);
+        if (u.Player.One.crashed || u.Player.Two.crashed) {
+            status.playing = false;
+            status.winner = "none";
+            if (!u.Player.One.exploding) {
+                status.winner = "P1";
+            } else if (!u.Player.Two.exploding) {
+                status.winner = "P2";
+            }
+        }
+        u.Player.One.fireMissile(status, u);
+        u.Player.Two.fireMissile(status, u);
+        for (var m = 0; m < u.missiles.length; m++) {
+            u.missiles[m].history.push(u.missiles[m].pos);
+            u.missiles[m].takeStep(u);
+            //u.missiles[m].draw(c, g, u);
+            if (u.missiles[m].crashed) {
+                u.missiles.splice(m, 1);
+                m--;
+            }
+        }
+        //dealWithBoxes(u);
+        //u.floatingBox.draw(c, g, imgList, u);
+        //drawEyes(c, g, u);
+        //dealWithWeapons(u);
+//        if (u.topologyCounter > 0){
+//            u.topologyCounter--;
+//        }
+        //drawWeapons(c, g, imgList, u);
+//        specialEffects(u);
+//        if (playing && !status.paused) {
+//            window.requestAnimationFrame(function(){playAnim(c, g, imgList, status, u);});
+//        }
+//    } else {
+//        if (playing && !status.paused) {
+//            window.requestAnimationFrame(function(){playAnim(c, g, imgList, status, u);});
+//        }
+//    }
+//    if (!playing) {
+//        gameOver(c, g, imgList, status, u);
+//    }
+}
+
+/*function createNetwork(){
+    var inputLayer = new Layer(numberOfInputs);
+    var hiddenLayer = new Layer(9);
+    var outputLayer = new Layer(4);
+
+    inputLayer.project(hiddenLayer);
+    hiddenLayer.project(outputLayer);
+
+    var myNetwork = new Network({
+	input: inputLayer,
+	hidden: [hiddenLayer],
+	output: outputLayer
+    });
+    return myNetwork;
+}*/
+
+function playTournament(A, gameNumber){//A is an array of networks, number of games Played
+    var playerNumber = A.length;
+    var results = [];
+    for (var row = 0; row < playerNumber; row++){
+        results.push(Array(playerNumber).fill(0));
+    }
+    for (var homePlayer = 0; homePlayer < playerNumber - 1; homePlayer++){
+        for (var awayPlayer = homePlayer + 1; awayPlayer < playerNumber; awayPlayer++){
+            for (var nthGame = 0; nthGame < gameNumber; nthGame++){
+                var gameResult = playGame(A[homePlayer], A[awayPlayer]);
+                results[homePlayer][awayPlayer] = results[homePlayer][awayPlayer] + gameResult;
+                results[awayPlayer][homePlayer] = results[awayPlayer][homePlayer] - gameResult;
+            }
+        }
+    }
+    return results;
+}
+//var x = [];
+//var zeroVector = [];
+//
+//for (var i = 0; i < 3; i++){
+////    for (var j = 0; j < 3; j++){
+////        zeroVector.push(0);
+////    }
+//    x.push(Array(3).fill(0));
+//}
+
+//for (var homePlayer = 0; homePlayer < 2; homePlayer++){
+//        for (var awayPlayer = homePlayer + 1; awayPlayer < 3; awayPlayer++){
+//            for (var nthGame = 0; nthGame < 1; nthGame++){
+//                var gameResult = 1;
+//                x[homePlayer][awayPlayer] = x[homePlayer][awayPlayer] + gameResult;
+//                x[awayPlayer][homePlayer] = x[awayPlayer][homePlayer] - gameResult;
+//                //results[awayPlayer][homePlayer] += gameResult;
+//            }
+//        }
+//    }
+function makeAGoodBrain(nPlayers, nGames, nIterations, learningRate){
+    var A = [];
+    for (var i = 0; i < nPlayers; i++){
+        A.push(new network([7,9,4],"random"));
+    }
+    for (var i = 0; i < nIterations; i++){
+        A = improveSpecies(A, nGames, 0.1);
+        if (i % 10 == 9){
+            console.log(i+1+' tournaments so far!');
+        }
+    }
+    return A[0];
+}
+
+
+//console.log(R[1][0]);
+//console.log(R[0][1]);
+
+function improveSpecies(A, nGames, learningRate){
+    var playerNumber = A.length;
+    var R = playTournament(A, nGames);
+    console.log(R);
+    var score = Array(playerNumber).fill(0);
+    for (var homePlayer = 0; homePlayer < playerNumber - 1; homePlayer++){
+        for (var awayPlayer = homePlayer + 1; awayPlayer < playerNumber; awayPlayer++){
+                score[homePlayer] += R[homePlayer][awayPlayer];
+        }
+    }
+    var winner = 0;
+    var topScore = 0;
+    for (var contestant = 0; contestant < playerNumber; contestant++){
+        if(score[contestant] > topScore){
+            winner = contestant;
+            topScore = score[contestant];
+        }
+    }
+    var B = [];
+    for (var newNetwork = 0; newNetwork < playerNumber; newNetwork++){
+        B.push(A[winner].perturb(learningRate));
+    }
+    return B;
+}
 
 
 ship.prototype.makeDecision = function(brain, status, u){
@@ -2022,10 +2182,6 @@ ship.prototype.makeDecision = function(brain, status, u){
         status.keysList[this.keyScheme(status).moveRight] = false;
     }
 };
-
-function squash(x){
-    return 1/(1 + Math.exp(-x));
-}
 
 ship.prototype.pointToCoordinates = function(v, u){     ///////////// Expresses v in the coordinates where the speed of this ship is (v,0) and the position is (0,0)
     var answer = new vec(v.x, v.y);
@@ -2092,6 +2248,8 @@ ship.prototype.observe = function(u){
     // Future Earth Coordinates
     observations.push(squash( (canToEarth(ghost.pos, u).x - 200)/100 ));
     observations.push(squash( (canToEarth(ghost.pos, u).y - 200)/100 ));
+    // Temperature
+    observations.push(squash((this.engineTemp - u.overheatTemp/2)/u.overheatTemp));
     return observations;
 };
 
@@ -2428,8 +2586,8 @@ function startTheGame(c, g, imgList, status, u) {
     g = new graphicalInfo(u);
     c = new makeContext(g);
     u.Player = new playerTypes(u);
-    u.Player.One.whoPlaying = new network([6,8,4],"random");
-    u.Player.Two.whoPlaying = new network([6,8,4],"random");
+    u.Player.One.whoPlaying = brain1;
+    u.Player.Two.whoPlaying = brain2;
     u.mode = "Torus";
     if (Math.floor(Math.random()*2) > 0) {
         u.eyesChasing = u.Player.One;
@@ -2668,6 +2826,7 @@ function pause(c, g, status) {
 
 function unPause(c, g, imgList, status, u) {
     status.paused = false;
+    debugger;
     playAnim(c, g, imgList, status, u);
 }
 
@@ -2690,14 +2849,19 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function demo() {
-  //await sleep(2000);
-  finishLoading();
+//async function demo() {
+//  await sleep(0);
+//  finishLoading();
+//}
+if (displayingGraphics){
+    document.fonts.onloadingdone = finishLoading;
 }
 
-if (displayingGraphics) {
-    window.onload = demo();
-}
+//document.fonts.ready.then(finishLoading());
+//
+//if (displayingGraphics) {
+//    window.onload = demo();
+//}
 
 /*
 Do division instead of substraction in the function LeaveScreen
@@ -2706,7 +2870,7 @@ Add googly eyes to planet - DONE
 
 Start menu - DONE
 
-Am I sure about hitbox?
+Am I sure about hitbox? I'm more sure now
 
 WEAPONS IDEAS:
 Missile xx
@@ -2745,3 +2909,12 @@ if (!displayingGraphics) {
         ship:ship,
     };
 }
+
+var B1 = '{"sizes":[7,9,4],"layers":[{"neuronList":[{"inputs":[],"ID":"0","lit":0.8553427080926441},{"inputs":[],"ID":"1","lit":0.49557322918987906},{"inputs":[],"ID":"2","lit":0.7328861032253466},{"inputs":[],"ID":"3","lit":0.37616414304416373},{"inputs":[],"ID":"4","lit":0.2742395340615952},{"inputs":[],"ID":"5","lit":0.5735848616059925},{"inputs":[],"ID":"6","lit":0.46879062662624377}]},{"neuronList":[{"inputs":[0.5440517376642204,-0.4754927666300322,1.2468016538907325,0.9221884820981777,0.49570634373498895,0.17481647362824215,0.35855093389246057],"ID":"7","lit":0.8692867122697889},{"inputs":[1.2689321452123978,0.7949124029281032,-0.10549459731820221,0.7541436083000246,0.48119264819112173,-1.2099129567389646,-0.8106297210055387],"ID":"8","lit":0.6777900222917552},{"inputs":[-1.1105289933806282,0.479712796051044,-0.30685169357874087,0.6937179658185981,-0.4908915537113244,0.27789028110460173,-0.6402826380597443],"ID":"9","lit":0.2785888296430771},{"inputs":[-0.5533269001258934,-0.5301475178282622,-0.5989062408133473,-0.4699980734251107,-0.4799771815352749,-0.2834011146227605,-0.26712279558035384],"ID":"10","lit":0.1453999325932188},{"inputs":[0.9979674435694214,0.4393133934883381,-0.2775938152726155,-0.5048399895622646,-0.2348128208611287,0.2643885999791416,0.008101753597513556],"ID":"11","lit":0.6833091102116758},{"inputs":[0.21344735368070766,-0.21766782596925938,-0.2649618791347101,0.45689688429951736,-0.013415781929633136,-0.6898030561912468,-0.3944331681044798],"ID":"12","lit":0.3700820897750981},{"inputs":[0.07695021810779555,-1.049357950753781,0.23581018799510203,-0.6105190228747235,-0.017110588525973802,0.33113691698811887,0.6303979320887767],"ID":"13","lit":0.4924303556275918},{"inputs":[-0.8250555481303253,0.8808794503395504,0.14232333684036175,0.29992916333136466,-0.7206985555877851,0.2779403786761952,0.45949507983209503],"ID":"14","lit":0.5312466681415087},{"inputs":[-0.879758154812022,1.1173107056225244,0.007103183890058956,-0.07723027470813008,0.0867953398608193,0.14844782807304902,-0.5227402159082706],"ID":"15","lit":0.4112654685805655}]},{"neuronList":[{"inputs":[null,null,null,null,null,null,null,-0.4177632918020322,-0.10574936700353621,-0.3455837898389761,0.1882410474865498,0.7431886512478502,0.26156369695308307,0.1677355093701054,-0.34329901398230395,0.06388909761078998],"ID":"16","lit":0.5068463476352258},{"inputs":[null,null,null,null,null,null,null,0.2235731929426166,0.7812969892680337,-1.2422913241809008,0.34402395657123724,1.347274712408948,0.5461211947894401,0.3290530229881457,-0.05772286061619978,-0.4546494820490665],"ID":"17","lit":0.8168187061467788},{"inputs":[null,null,null,null,null,null,null,0.15686677460389442,0.44829332106232656,-0.22685897438490654,-0.08993172712612404,1.3833190845928163,-0.28246861744786594,-0.580220541891719,-0.47908405259547837,0.927815430035904],"ID":"18","lit":0.7400023730770529},{"inputs":[null,null,null,null,null,null,null,0.4271638882969523,0.7733647864006669,-0.3997166347665606,-0.3347470302846233,-0.47432433145443686,-0.8184010527820333,-0.46906872761867224,-0.17950360002361354,-0.30300078114246354],"ID":"19","lit":0.4152106308370901}]}]}';
+var brain1 = JSON.parse(B1);
+Object.setPrototypeOf(brain1, network.prototype);
+
+var B2 = '{"sizes":[7,9,4],"layers":[{"neuronList":[{"inputs":[],"ID":"0","lit":0.5297686627974418},{"inputs":[],"ID":"1","lit":0.444811908406958},{"inputs":[],"ID":"2","lit":0.8278035899054215},{"inputs":[],"ID":"3","lit":0.38047191407910574},{"inputs":[],"ID":"4","lit":0.036244031068205784},{"inputs":[],"ID":"5","lit":0.05706626624208751},{"inputs":[],"ID":"6","lit":0.3775406687981454}]},{"neuronList":[{"inputs":[-0.08281454504683161,1.0268284636073624,-0.5135545105994512,0.40094479341941974,0.370908504819206,1.531686892140105,0.5158747128598856],"ID":"7","lit":0.6072848696724863},{"inputs":[0.9272498008159586,1.3440540028587982,0.8774950044643,0.7299859967447151,-0.19179379443852237,-0.31202874417980425,-0.8756532619924253],"ID":"8","lit":0.850414963239495},{"inputs":[-0.42784834665034355,0.7588108462949424,0.18090682541961606,0.545968821377401,-0.42056126370639124,1.3403699982702462,-0.19360745269302293],"ID":"9","lit":0.6121837801808725},{"inputs":[-0.3586717605608628,-0.4883114724752858,-1.9994200329966625,-0.23052058438542866,-0.7339196264394485,0.6022503118756223,1.1154792962252889],"ID":"10","lit":0.1517235158387866},{"inputs":[-0.6821033008674745,-0.07148654960880768,0.20943013796348034,-0.3043143572589829,-1.439317368905585,-0.1700769586463957,0.09426885061039907],"ID":"11","lit":0.41051106562120104},{"inputs":[0.22183781493140167,0.21067597406735505,-0.23298012239252425,-0.8304333815142726,-0.951393415201426,-0.5635965135465215,-0.2643664647481333],"ID":"12","lit":0.38602828215762125},{"inputs":[-2.055356345057604,-0.3208344140644546,0.09159213575510988,-0.9429396712094784,-0.9777065505828123,-0.7808493639918525,-1.411278485095409],"ID":"13","lit":0.10646898528820332},{"inputs":[-1.2552674425581714,-0.1669208836442951,0.3991094335784696,-0.9232808323734392,-0.2676867267494811,-0.19236315992203554,0.6709261236106374],"ID":"14","lit":0.3710941986833791},{"inputs":[-0.09802606367207498,-0.8118342387729195,-0.3061944891213205,0.5007489888151755,0.2501073484695774,1.6240006922402082,-0.40044917302886973],"ID":"15","lit":0.3715815433877886}]},{"neuronList":[{"inputs":[null,null,null,null,null,null,null,-0.7044750264767229,-1.0095721524142467,1.5676432224316472,0.4911614472682318,1.4637815845210225,-1.118510154686779,0.4414260779422303,-0.7246014563132128,0.2811542538614536],"ID":"16","lit":0.45004984881760357},{"inputs":[null,null,null,null,null,null,null,0.822265202491216,-0.21866607856516734,-0.632719159473382,1.571997458584676,0.6859020747662277,-0.18055358461293108,-0.05293350409781647,-0.18518723624187616,0.9327517518236536],"ID":"17","lit":0.6567102677002942},{"inputs":[null,null,null,null,null,null,null,0.09745506902737881,0.29326067797890143,-1.4979087518182674,0.6020614832054613,-1.2104047794719397,1.809076384714311,0.4309349543244723,-0.23842024149567065,0.5131376873391409],"ID":"18","lit":0.4582164557385277},{"inputs":[null,null,null,null,null,null,null,-0.44759387175560406,-0.5697092686039591,-0.48549769850327595,0.8203894113184004,-0.622782669882613,-0.7494585464141666,-0.4611234287806754,1.1754792207781206,0.04973125771422719],"ID":"19","lit":0.25570334856342225}]}]}';
+brain2 = JSON.parse(B2);
+brain1 = brain2;
+Object.setPrototypeOf(brain2, network.prototype);
