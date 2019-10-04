@@ -1,17 +1,17 @@
-/* global require, console*/
+/* globals require, console*/
 
 //export makeAGoodBrain;
 
 /*jshint esversion: 6 */
 
 var displayingGraphics;
-if (typeof window === "undefined"){
+if (typeof window === "undefined") {
     displayingGraphics = false;
 } else {
     displayingGraphics = true;
 }
 
-if (!displayingGraphics){
+if (!displayingGraphics) {
     var main = require("./Main.js");
     var network = require("./Network.js");
     var numberOfInputs = 6;
@@ -161,13 +161,16 @@ network.prototype.activate = function(inputArray){
 
 
 function playGame(brain1, brain2, options){
+    options.onePlayer = options.onePlayer || false;
     var u = new universeInfo();
     u.explosionLength = 0;
     var status = new gameStatus();
     u.Player = new playerTypes(u);
     u.Player.One.whoPlaying = brain1;
-    if (options.onePlayer !== undefined && options.onePlayer){
-        
+    if (options.onePlayer){
+        u.Player.Two.whoPlaying = undefined;
+    } else {   
+        u.Player.Two.whoPlaying = brain1;
     }
     u.Player.Two.whoPlaying = brain2;
     if (options.random !== undefined && options.random){
@@ -182,43 +185,53 @@ function playGame(brain1, brain2, options){
     }
     status.playing = true;
     status.winner = "none";
+    status.onePlayer = options.onePlayer;
+    status.stepCount = 0;
     while(status.playing){
         gameStep(u,status);
+        status.stepCount += 1;
     }
-    if (status.winner == "P1"){
-        return 1;
-    } else if (status.winner == "P2"){
-        return -1;
+    if (status.onePlayer){
+        return status.stepCount;
     } else {
-        return 0;
+        if (status.winner == "P1"){
+            return 1;
+        } else if (status.winner == "P2"){
+            return -1;
+        } else {
+            return 0;
+        }
     }
 }
 
 function gameStep(u, status){
-        u.Player.One.makeDecision(u.Player.One.whoPlaying, status, u);
+    status.onePlayer = status.onePlayer || false;
+    u.Player.One.makeDecision(u.Player.One.whoPlaying, status, u);
+    u.Player.One.takeStep(u, status);
+    if (!status.onePlayer) {
         u.Player.Two.makeDecision(u.Player.Two.whoPlaying, status, u);
-        u.Player.One.takeStep(u, status);
         u.Player.Two.takeStep(u, status);
-        if (u.Player.One.crashed || u.Player.Two.crashed) {
-            status.playing = false;
-            status.winner = "none";
-            if (!u.Player.One.exploding) {
-                status.winner = "P1";
-            } else if (!u.Player.Two.exploding) {
-                status.winner = "P2";
-            }
+    }
+    if (u.Player.One.crashed || u.Player.Two.crashed) {
+        status.playing = false;
+        status.winner = "none";
+        if (!u.Player.One.exploding) {
+            status.winner = "P1";
+        } else if (!u.Player.Two.exploding) {
+            status.winner = "P2";
         }
-        u.Player.One.fireMissile(status, u);
-        u.Player.Two.fireMissile(status, u);
-        for (var m = 0; m < u.missiles.length; m++) {
-            u.missiles[m].history.push(u.missiles[m].pos);
-            u.missiles[m].takeStep(u);
-            //u.missiles[m].draw(c, g, u);
-            if (u.missiles[m].crashed) {
-                u.missiles.splice(m, 1);
-                m--;
-            }
+    }
+    u.Player.One.fireMissile(status, u);
+    u.Player.Two.fireMissile(status, u);
+    for (var m = 0; m < u.missiles.length; m++) {
+        u.missiles[m].history.push(u.missiles[m].pos);
+        u.missiles[m].takeStep(u);
+        //u.missiles[m].draw(c, g, u);
+        if (u.missiles[m].crashed) {
+            u.missiles.splice(m, 1);
+            m--;
         }
+    }
         //dealWithBoxes(u);
         //u.floatingBox.draw(c, g, imgList, u);
         //drawEyes(c, g, u);
@@ -241,44 +254,92 @@ function gameStep(u, status){
 //    }
 }
 
-//function createNetwork(){
-//    var inputLayer = new Layer(numberOfInputs);
-//    var hiddenLayer = new Layer(9);
-//    var outputLayer = new Layer(4);
-//
-//    inputLayer.project(hiddenLayer);
-//    hiddenLayer.project(outputLayer);
-//
-//    var myNetwork = new Network({
-//	input: inputLayer,
-//	hidden: [hiddenLayer],
-//	output: outputLayer
-//    });
-//    return myNetwork;
-//}
-
-function playTournament(A, gameNumber){//A is an array of networks, number of games Played
+function playTournament(A, gameNumber, options){//A is an array of networks, number of games Played
     var playerNumber = A.length;
     var results = [];
-    for (var row = 0; row < playerNumber; row++){
-        results.push(Array(playerNumber).fill(0));
-    }
-    for (var homePlayer = 0; homePlayer < playerNumber; homePlayer++){
-        for (var awayPlayer = 0; awayPlayer < playerNumber; awayPlayer++){
-            if (homePlayer != awayPlayer){
-                for (var nthGame = 0; nthGame < gameNumber; nthGame++){
-                    var gameResult = playGame(A[homePlayer], A[awayPlayer]);
-                    results[homePlayer][awayPlayer] = results[homePlayer][awayPlayer] + gameResult;
-                    results[awayPlayer][homePlayer] = results[awayPlayer][homePlayer] - gameResult;
-                    gameResult = playGame(A[awayPlayer], A[homePlayer]);
-                    results[homePlayer][awayPlayer] = results[homePlayer][awayPlayer] - gameResult;
-                    results[awayPlayer][homePlayer] = results[awayPlayer][homePlayer] + gameResult;
+    options.onePlayer = options.onePlayer || false;
+    if (options.onePlayer){
+        var scores = [];
+        for (var player = 0; player < playerNumber; player++){
+            var currentScore = 0;
+            for (var nthGame2 = 0; nthGame2 < gameNumber; nthGame2++){
+                var gameResult2 = playGame(A[player], null, options);
+                currentScore += gameResult2;
+            }
+            scores.push(currentScore);
+        }
+        return scores;
+    } else {
+        for (var row = 0; row < playerNumber; row++){
+            results.push(Array(playerNumber).fill(0));
+        }
+        for (var homePlayer = 0; homePlayer < playerNumber; homePlayer++){
+            for (var awayPlayer = 0; awayPlayer < playerNumber; awayPlayer++){
+                if (homePlayer != awayPlayer){
+                    for (var nthGame = 0; nthGame < gameNumber; nthGame++){
+                        var gameResult = playGame(A[homePlayer], A[awayPlayer]);
+                        results[homePlayer][awayPlayer] = results[homePlayer][awayPlayer] + gameResult;
+                        results[awayPlayer][homePlayer] = results[awayPlayer][homePlayer] - gameResult;
+                        gameResult = playGame(A[awayPlayer], A[homePlayer]);
+                        results[homePlayer][awayPlayer] = results[homePlayer][awayPlayer] - gameResult;
+                        results[awayPlayer][homePlayer] = results[awayPlayer][homePlayer] + gameResult;
+                    }
                 }
             }
         }
+        var score = Array(playerNumber).fill(0);
+        for (homePlayer = 0; homePlayer < playerNumber; homePlayer++){
+            for (var awayPlayer2 = 0; awayPlayer2 < playerNumber; awayPlayer2++){
+                    score[homePlayer] += results[homePlayer][awayPlayer2];
+            }
+        }
+        return score;
     }
-    return results;
 }
+
+function improveSpecies(A, nGames, learningRate, options){
+    var playerNumber = A.length;
+    options.onePlayer = options.onePlayer || false;
+    var score;
+    if (options.onePlayer){
+        score = playTournamentOnePlayer(A, nGames, options);
+    } else {
+        score = playTournament(A, nGames, options);
+    }
+    var winners = [];
+    var topScore = 0;
+    for (var contestant = 0; contestant < playerNumber; contestant++){
+        if(score[contestant] == topScore){
+            winners.push(contestant);
+        } else if (score[contestant] > topScore){
+            winners =[contestant];
+            topScore = score[contestant];
+        }
+    }
+    console.log("Winner is number "+winners+". Top score: "+topScore / nGames);
+    var winnersNumber = winners.length;
+    var B = [];
+    if (winnersNumber == playerNumber){
+        //console.log("All ties :(");
+        for (var newNetwork = 0; newNetwork < playerNumber; newNetwork++){
+            B.push(A[newNetwork].perturb(learningRate));
+        }
+    } else {
+        if (winners.length != 1 || winners[0] !== 0){
+            //console.log("Winners are: "+winners);
+        }
+        for (var newNetwork2 = 0; newNetwork2 < winnersNumber; newNetwork2++){
+            B.push(A[winners[newNetwork2]]);
+        }
+        for (newNetwork2 = winnersNumber; newNetwork2 < playerNumber; newNetwork2++){
+            //console.log(winners[newNetwork2 % winnersNumber]);
+            var newNumber = Math.floor(Math.random() * winnersNumber);
+            B.push(A[winners[newNumber]].perturb(learningRate));
+        }
+    }
+    return B;
+}
+
 //var x = [];
 //var zeroVector = [];
 //
@@ -299,14 +360,19 @@ function playTournament(A, gameNumber){//A is an array of networks, number of ga
 //            }
 //        }
 //    }
-function makeAGoodBrain(nPlayers, nGames, nIterations, learningRate, options){//options = {consoleInterval:interations, writeInterval:In minutes}
+function makeAGoodBrain(nPlayers, nGames, nIterations, learningRate, options){//options = {consoleInterval:interations, writeInterval:In minutes, seed:another array}
     var A = [];
-    for (var i = 0; i < nPlayers; i++){
+    var newBrains = nPlayers;
+    if (options.seed !== undefined){
+        A = options.seed;
+        newBrains -= options.seed.length;
+    }
+    for (var i = 0; i < newBrains; i++){
         A.push(new network([7,9,4],"random"));
     }
     var then = Date.now();
     for (i = 0; i < nIterations; i++){
-        A = improveSpecies(A, nGames, 0.1);
+        A = improveSpecies(A, nGames, learningRate, options);
         var nowDate = Date.now();
         if (options.consoleInterval !== undefined){
                 if (i % options.consoleInterval == options.consoleInterval - 1){
@@ -329,6 +395,70 @@ function makeAGoodBrain(nPlayers, nGames, nIterations, learningRate, options){//
     return A[0];
 }
 
+//////// ONE PLAYER GAMES
+
+function playGameOnePlayer(brainArray, angle){
+    var nBrains = brainArray.length;
+    var scores = [];
+    for (var countBrain = 0; countBrain <  nBrains; countBrain++){
+        var u = new universeInfo();
+        u.explosionLength = 0;
+        var status = new gameStatus();
+        u.Player = new playerTypes(u);
+        u.Player.One.whoPlaying = brainArray[countBrain];
+        u.Player.One.vel = u.Player.One.vel.rot(angle);
+        status.playing = true;
+        status.winner = "none";
+        status.onePlayer = true;
+        status.stepCount = 0;
+        while(status.playing){
+            gameStep(u,status);
+            status.stepCount += 1;
+        }
+        scores.push(status.stepCount);
+    }
+    return scores;
+}
+
+function playTournamentOnePlayer(A, gameNumber, options){//A is an array of networks, number of games Played
+    var playerNumber = A.length;
+    var scores = Array(playerNumber).fill(0);
+    var angle = 0;
+    for (var nthGame2 = 0; nthGame2 < gameNumber; nthGame2++){
+        var gameResult = playGameOnePlayer(A, angle);
+        for (var player = 0 ; player < playerNumber; player++){
+            scores[player] += gameResult[player];
+        }
+        angle += Math.PI * 2/gameNumber;
+    }
+    return scores;
+}
+
+//var x = [];
+//var zeroVector = [];
+//
+//for (var i = 0; i < 3; i++){
+////    for (var j = 0; j < 3; j++){
+////        zeroVector.push(0);
+////    }
+//    x.push(Array(3).fill(0));
+//}
+
+//for (var homePlayer = 0; homePlayer < 2; homePlayer++){
+//        for (var awayPlayer = homePlayer + 1; awayPlayer < 3; awayPlayer++){
+//            for (var nthGame = 0; nthGame < 1; nthGame++){
+//                var gameResult = 1;
+//                x[homePlayer][awayPlayer] = x[homePlayer][awayPlayer] + gameResult;
+//                x[awayPlayer][homePlayer] = x[awayPlayer][homePlayer] - gameResult;
+//                //results[awayPlayer][homePlayer] += gameResult;
+//            }
+//        }
+//    }
+
+
+/////////////////
+
+
 function writingCallback(err){
   if (err) console.log(err);
   console.log("Successfully written to file.");
@@ -337,7 +467,15 @@ function writingCallback(err){
 const fs = require('fs');
 
 
-var A = makeAGoodBrain(10, 1, 1, 0.1, {consoleInterval:25, writeInterval:0});
+var A = makeAGoodBrain(100, 20, 3, 0.5, {consoleInterval:50, writeInterval:10, random:true, onePlayer:true});
+//console.log("First tournament done.");
+//A = makeAGoodBrain(100, 5, 10, 0.1, {consoleInterval:50, writeInterval:10, random:true, onePlayer:true, seed:[A]});
+//console.log("Second tournament done.");
+//A = makeAGoodBrain(100, 5, 10, 0.1, {consoleInterval:50, writeInterval:10, random:true, onePlayer:true, seed:[A]});
+//A = makeAGoodBrain(10, 50, 10, 0.1, {consoleInterval:50, writeInterval:10, random:true, onePlayer:true, seed:[A]});
+console.log("First tournament done. Now for the pairs");
+A = makeAGoodBrain(5, 20, 1000, 0.1, {consoleInterval:50, writeInterval:10, random:true, onePlayer:true, seed:[A, A]});//function makeAGoodBrain(nPlayers, nGames, nIterations, learningRate, options){//options = {consoleInterval:interations, writeInterval:In minutes}
+
 
 
 var date = new Date();
@@ -367,50 +505,7 @@ function importBrain(path){
 
 
 
-function improveSpecies(A, nGames, learningRate){
-    var playerNumber = A.length;
-    var R = playTournament(A, nGames);
-    //console.log(R);
-    var score = Array(playerNumber).fill(0);
-    for (var homePlayer = 0; homePlayer < playerNumber; homePlayer++){
-        for (var awayPlayer = 0; awayPlayer < playerNumber; awayPlayer++){
-                score[homePlayer] += R[homePlayer][awayPlayer];
-        }
-    }
-    //console.log("Scores are:");
-    //console.log(score);
-    var winners = [];
-    var topScore = 0;
-    for (var contestant = 0; contestant < playerNumber; contestant++){
-        if(score[contestant] == topScore){
-            winners.push(contestant);
-        } else if (score[contestant] > topScore){
-            winners =[contestant];
-            topScore = score[contestant];
-        }
-    }
-    var winnersNumber = winners.length;
-    var B = [];
-    if (winnersNumber == playerNumber){
-        //console.log("All ties :(");
-        for (var newNetwork = 0; newNetwork < playerNumber; newNetwork++){
-            B.push(A[newNetwork].perturb(learningRate));
-        }
-    } else {
-        if (winners.length != 1 || winners[0] !== 0){
-            console.log("Winners are: "+winners);
-        }
-        for (var newNetwork2 = 0; newNetwork2 < winnersNumber; newNetwork2++){
-            B.push(A[winners[newNetwork2]]);
-        }
-        for (newNetwork2 = winnersNumber; newNetwork2 < playerNumber; newNetwork2++){
-            //console.log(winners[newNetwork2 % winnersNumber]);
-            var newNumber = Math.floor(Math.random() * winnersNumber);
-            B.push(A[winners[newNumber]].perturb(learningRate));
-        }
-    }
-    return B;
-}
+
 
 
 
