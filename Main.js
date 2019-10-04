@@ -1930,8 +1930,12 @@ network.prototype.perturb = function(rate){
     return theNewNetwork;
 };
 
-function squash(x){
+function squash2(x){
     return 1/(1 + Math.exp(-x));
+}
+
+function squash(x){
+    return Math.max(x,0);
 }
 
 network.prototype.neuronFind = function(ID){
@@ -2117,10 +2121,10 @@ function makeAGoodBrain(nPlayers, nGames, nIterations, learningRate){
     for (var i = 0; i < nPlayers; i++){
         A.push(new network([7,9,4],"random"));
     }
-    for (var i = 0; i < nIterations; i++){
+    for (i = 0; i < nIterations; i++){
         A = improveSpecies(A, nGames, 0.1);
         if (i % 10 == 9){
-            console.log(i+1+' tournaments so far!');
+            //console.log(i+1+' tournaments so far!');
         }
     }
     return A[0];
@@ -2133,7 +2137,7 @@ function makeAGoodBrain(nPlayers, nGames, nIterations, learningRate){
 function improveSpecies(A, nGames, learningRate){
     var playerNumber = A.length;
     var R = playTournament(A, nGames);
-    console.log(R);
+    //console.log(R);
     var score = Array(playerNumber).fill(0);
     for (var homePlayer = 0; homePlayer < playerNumber - 1; homePlayer++){
         for (var awayPlayer = homePlayer + 1; awayPlayer < playerNumber; awayPlayer++){
@@ -2225,7 +2229,7 @@ ship.prototype.observe = function(u){
         //if ((Math.abs(whereIsGhost.x) > 10 || Math.abs(whereIsGhost.y) > 10) && whereIsGhost.x > - u.universeWidth/2 && whereIsGhost.x/2 < u.universeWidth && whereIsGhost.y > -u.universeHeight/2 && whereIsGhost.y < u.universeHeight/2){
         ghost.freeFall(1, u, computerError);
         //console.log(ghost.pos.x+", "+ghost.pos.y);
-        var newDist = shortestPath(ghost.pos, u.O, u)
+        var newDist = shortestPath(ghost.pos, u.O, u);
         if (typeof newDist === "undefined"){
             ghost.pos = new vec (0,0);
             ghost.vel = new vec (0,0);
@@ -2915,6 +2919,5 @@ var brain1 = JSON.parse(B1);
 Object.setPrototypeOf(brain1, network.prototype);
 
 var B2 = '{"sizes":[7,9,4],"layers":[{"neuronList":[{"inputs":[],"ID":"0","lit":0.9710952657152315},{"inputs":[],"ID":"1","lit":0.2204594634547558},{"inputs":[],"ID":"2","lit":0.7267333136599103},{"inputs":[],"ID":"3","lit":0.18279690366003215},{"inputs":[],"ID":"4","lit":0.012550800774173474},{"inputs":[],"ID":"5","lit":0.36217562033151707},{"inputs":[],"ID":"6","lit":0.5187412158785352}]},{"neuronList":[{"inputs":[0.4286030026885075,-0.20903369012135986,0.06854532128393873,-0.7674579894269997,-1.1953850220803688,-0.7771287170230571,0.588942760955379],"ID":"7","lit":0.571679037913058},{"inputs":[-0.5246987147599833,-1.174403997213205,0.371247179391232,1.1513966716801887,-1.324517793095905,-1.031679231984305,-0.20915910271732002],"ID":"8","lit":0.31282528292024786},{"inputs":[-0.6023151774196721,0.6081256471057574,0.04455531597763685,0.7453554850211889,0.35246745955017955,0.36386658479835854,0.489162183306072],"ID":"9","lit":0.5269104920079741},{"inputs":[-0.3379522245671062,0.7771775918093903,0.21102561417670745,0.9686064608755411,-0.6976204806512333,1.3849239539060552,-0.3195891484041271],"ID":"10","lit":0.6226040563374658},{"inputs":[-0.8008571806340788,-0.2576457931527807,0.05658208103335087,-0.28277599861711633,0.41486729791203786,-1.084104875144218,1.2357751514125552],"ID":"11","lit":0.3562995891203931},{"inputs":[0.5834398741779975,-1.4280821120040752,1.023705539260428,0.4054298996574328,-1.204256245073429,-0.07036904909410274,-0.3249499816718085],"ID":"12","lit":0.7027961162680156},{"inputs":[0.2621311666740533,0.5439072088244155,0.6803416067572943,0.46308688076563204,0.5176479258490905,-0.3187670714756493,-0.46220675029435015],"ID":"13","lit":0.6467589849080402},{"inputs":[-0.38542625180364054,-0.5031921000361862,-1.046431875211035,1.6002859406516905,1.4411466459625055,-0.8562458108867792,-0.5431632660295382],"ID":"14","lit":0.1784398412764249},{"inputs":[-0.7400230660015472,0.08750799129382533,0.3619807796068385,0.04028630234077074,-0.9317396785759609,-0.09869865862922039,-0.8281352927666752],"ID":"15","lit":0.2878310566670767}]},{"neuronList":[{"inputs":[null,null,null,null,null,null,null,0.5408384214808374,-0.5109519432394208,0.0598083931391797,-0.009309720741805055,0.8899604415620009,-0.06964114132876079,-0.0964717876493946,-0.8947059443614372,-0.4160613392668354],"ID":"16","lit":0.5253315835113009},{"inputs":[null,null,null,null,null,null,null,0.3932456663050691,1.3688821449683446,0.392628837508149,-1.209427851897311,-0.002334837613784356,-0.05244981548899243,-0.2837235657031091,0.28803165570057065,-0.108639217487422],"ID":"17","lit":0.4764796729637655},{"inputs":[null,null,null,null,null,null,null,0.2337160839119651,0.7852535975462457,0.36251125851246835,0.33616875439528293,-0.5209499982000446,0.13312017529018025,1.1283351122885903,-0.6964237553906584,-0.9642616658492845],"ID":"18","lit":0.7340868366321796},{"inputs":[null,null,null,null,null,null,null,0.20277196893952107,1.0680992602340638,1.7373150081541238,0.23767743422210882,0.32744802072730705,1.0271726921650974,-1.381746331030238,0.004663907855714466,0.42546814479835315],"ID":"19","lit":0.8294364118416944}]}]}';
-brain2 = JSON.parse(B2);
-brain1 = brain2;
+var brain2 = JSON.parse(B2);
 Object.setPrototypeOf(brain2, network.prototype);

@@ -99,8 +99,12 @@ network.prototype.perturb = function(rate){
     return theNewNetwork;
 };
 
-function squash(x){
+function squash2(x){
     return 1/(1 + Math.exp(-x));
+}
+
+function squash(x){
+    return Math.max(x,0);
 }
 
 network.prototype.neuronFind = function(ID){
@@ -308,15 +312,24 @@ function improveSpecies(A, nGames, learningRate, options){
     }
     var winners = [];
     var topScore = 0;
+    var secondBest = 0;
+    var thirdBest = 0;
     for (var contestant = 0; contestant < playerNumber; contestant++){
         if(score[contestant] == topScore){
             winners.push(contestant);
         } else if (score[contestant] > topScore){
             winners =[contestant];
+            thirdBest = secondBest;
+            secondBest = topScore;
             topScore = score[contestant];
+        } else if (score[contestant] > secondBest){
+            thirdBest = secondBest;
+            secondBest = score[contestant];
+        } else if (score[contestant] > thirdBest){
+            thirdBest = score[contestant];
         }
     }
-    console.log("Winner is number "+winners+". Top score: "+topScore / nGames);
+    console.log("Winner is number "+winners+". Top score: "+topScore / nGames +". Second: "+secondBest / nGames +". Third: " + thirdBest / nGames);
     var winnersNumber = winners.length;
     var B = [];
     if (winnersNumber == playerNumber){
@@ -395,12 +408,18 @@ function makeAGoodBrain(nPlayers, nGames, nIterations, learningRate, options){//
     return A[0];
 }
 
+
+
+
+
+
 //////// ONE PLAYER GAMES
 
 function playGameOnePlayer(brainArray, angle){
     var nBrains = brainArray.length;
     var scores = [];
     for (var countBrain = 0; countBrain <  nBrains; countBrain++){
+        fs.writeFileSync("./Brains/LastBrain.JSON", JSON.stringify(brainArray[countBrain]), writingCallback);
         var u = new universeInfo();
         u.explosionLength = 0;
         var status = new gameStatus();
@@ -466,15 +485,15 @@ function writingCallback(err){
 
 const fs = require('fs');
 
-
-var A = makeAGoodBrain(100, 20, 3, 0.5, {consoleInterval:50, writeInterval:10, random:true, onePlayer:true});
+var startingBrain = importBrain("./Brains/FinalBrain10-3.JSON");
+var A = makeAGoodBrain(100, 20, 100, 0.1, {consoleInterval:10, writeInterval:5, random:true, onePlayer:true, seed:[startingBrain]});
 //console.log("First tournament done.");
 //A = makeAGoodBrain(100, 5, 10, 0.1, {consoleInterval:50, writeInterval:10, random:true, onePlayer:true, seed:[A]});
 //console.log("Second tournament done.");
 //A = makeAGoodBrain(100, 5, 10, 0.1, {consoleInterval:50, writeInterval:10, random:true, onePlayer:true, seed:[A]});
 //A = makeAGoodBrain(10, 50, 10, 0.1, {consoleInterval:50, writeInterval:10, random:true, onePlayer:true, seed:[A]});
-console.log("First tournament done. Now for the pairs");
-A = makeAGoodBrain(5, 20, 1000, 0.1, {consoleInterval:50, writeInterval:10, random:true, onePlayer:true, seed:[A, A]});//function makeAGoodBrain(nPlayers, nGames, nIterations, learningRate, options){//options = {consoleInterval:interations, writeInterval:In minutes}
+//console.log("First tournament done. Now for the pairs");
+//A = makeAGoodBrain(5, 20, 1000, 0.1, {consoleInterval:50, writeInterval:10, random:true, onePlayer:true, seed:[A, A]});//function makeAGoodBrain(nPlayers, nGames, nIterations, learningRate, options){//options = {consoleInterval:interations, writeInterval:In minutes}
 
 
 
