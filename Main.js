@@ -45,11 +45,19 @@ function gameStatus() {
     this.paused = false;
     this.changingKey = false;        //For changing controls   
     this.whichKeyIsChanging = null; //For changing controls
+    this.onePlayer = true;
     this.keysList = [];         // At any given point, keysList[leftKey] should be a Boolean saying if the left key is pressed
     this.p1Keys = new keySet(leftKey, rightKey, upKey, rShift, downKey);
     this.p2Keys = new keySet(aKey, dKey, wKey, spaceBar, sKey);
+    this.weaponTypes = [{type:"Mine",       exists:true, src:"imageMine"},
+                        {type:"Banana",     exists:true, src:"imageBanana"},
+                        {type:"Gravity",    exists:true, src:"imageGravity"},
+                        {type:"Top",        exists:true, src:"imageTop"},
+                        {type:"Guided",     exists:true, src:"imageMissile"},
+                        {type:"Guided3",    exists:true, src:"imageMissile3"},
+                        {type:"Magnet",     exists:true, src:"imageMagnet"},
+                        {type:"Bomb",       exists:true, src:"imageBomb"}];
 }
-
 
 
 
@@ -108,6 +116,8 @@ function getImages() {
     this.imageGravity.src = 'Gravity.png';
     this.imageMissile = new Image();
     this.imageMissile.src = 'Missile.png';
+    this.imageMissile3 = new Image();
+    this.imageMissile3.src = 'Missile3.png';
     this.imageMissileNoFire = new Image();
     this.imageMissileNoFire.src = 'MissileNoFire.png';
     this.imageLightning = new Image();
@@ -403,7 +413,7 @@ function setKeyListeners(c, g, imgList, status, u){
         status.keysList[e.keyCode]=false;
         };
     window.onkeydown = function (e) {status.keysList[e.keyCode]=true;
-                                   // console.log(e.keyCode);
+                                   //console.log(e.keyCode);
                                    if (e.keyCode == leftKey || e.keyCode == rightKey || e.keyCode == upKey || e.keyCode == downKey || e.keyCode == spaceBar) { ////////// Don't scroll with special keys ///////////
                                        e.preventDefault();
                                    }
@@ -438,7 +448,7 @@ function setKeyListeners(c, g, imgList, status, u){
         }
         if (status.scene =="options" || status.scene =="credits") {
             if (status.keysList[mKey]) {
-                document.getElementById("controls").style.display = "none";
+                document.getElementById("options").style.display = "none";
                     showMenu(c, g, imgList, status, u);
             }
         }
@@ -1239,8 +1249,9 @@ function dealWithBoxes(u) {
 
 function randomWeapon(u) {
     //console.log("Choosing weapon");
-    var num = u.weaponTypes.length;
-    return u.weaponTypes[Math.floor(Math.random()*num)];
+    let availableWeapons = u.weaponTypes.filter(w => w.exists);
+    var num = availableWeapons.length;
+    return availableWeapons[Math.floor(Math.random()*num)].type;
 }
 
 
@@ -2050,9 +2061,9 @@ network.prototype.activate = function(inputArray){
 
 
 function playGame(brain1, brain2){
-    var u = new universeInfo();
-    u.explosionLength = 0;
     var status = new gameStatus();
+    var u = new universeInfo(status);
+    u.explosionLength = 0;
     u.Player = new playerTypes(u);
     u.Player.One.whoPlaying = brain1;
     u.Player.Two.whoPlaying = brain2;
@@ -2524,7 +2535,7 @@ function playerTypes(u, status) { ////////////WARNING status.p1Keys and status.p
 
 
 
-function universeInfo() {
+function universeInfo(status) {
     this.universeWidth = 800;    //Width of universe in pixels
     this.universeHeight = 600;   //Height of universe in pixels
     this.defaultG = 20000;//Default strength of gravity
@@ -2543,7 +2554,7 @@ function universeInfo() {
     this.missileTempIncrease = 8;//Temperature increase by firing a missiles
     this.minWeaponWaitTime = 30; //Minimum wait for a weapon 200 seems reasonable
     this.maxWeaponWaitTime = 50;//Max wait for a weapon 500 seems reasonable
-    this.weaponTypes = ["Mine", "Banana", "Gravity", "Top", "Guided", "Guided3", "Magnet", "Bomb"];       //All the possible weapons
+    this.weaponTypes = status.weaponTypes;       //All the possible weapons
     this.guidedAgility = 0.1;        //How fast can the guided missile turn
     this.magnetStrength = 2;       //How strong the magnet pull is
     this.bombTimer = 60;            //How long before bomb detonation
@@ -2551,7 +2562,7 @@ function universeInfo() {
     this.effectDuration = 15;        //Duration of weapon effects, in frames
     this.infiniteAmmo = true;
     this.missiles = [];          //Array storing all the flying missiles 
-    this.successfulMissiles = [];//Keeps track of the missiles that have hit their targetu.
+    this.successfulMissiles = [];//Keeps track of the missiles that have hit their targets.
     this.eyesChasing = 1;        //Who the eyes of the Earth are chasing
     this.weaponTimer = 0;        //Time until a weapon spawns
     this.floatingBox = new presentBox(null);//The one possible weapon box
@@ -2559,7 +2570,7 @@ function universeInfo() {
     this.GravityWarpTimer = 0;       //Time left of extra gravity
     this.topologyCounter = 0;        //Time left in the topolgizer effect
     this.topologyFlipping = 0;       //0 if it's not currently changing, H or V if it's changing
-    this.mode = "RP2";         //Universe is a torus. Only mode for now. Other possibilites: InvertX, InvertY (klein bottles), RP2
+    this.mode = "Torus";         //Universe is a torus. Only mode for now. Other possibilites: InvertX, InvertY (klein bottles), RP2
     this.O = new vec(this.universeWidth/2, this.universeHeight/2); //The origin, the planet.
     this.starDisplay = [];
     this.Player = null;
@@ -2583,6 +2594,7 @@ function universeInfo() {
 /////////////////////////////// Things running in the game ////////////////////////
 
 function gameOver(c, g, imgList, status, u) {
+    clearKeys(status, u);
     status.scene = "GameOver";
     drawBackground(c, g, imgList, u);
     drawEyes(c, g, u);
@@ -2678,11 +2690,29 @@ function playAnim(c, g, imgList, status, u) {
 //    return A;
 //}
 
+function clearKeys(status, u){
+    status.keysList[u.Player.One.keyScheme(status).thrust] = false;
+    status.keysList[u.Player.One.keyScheme(status).fire] = false;
+    status.keysList[u.Player.One.keyScheme(status).moveLeft] = false;
+    status.keysList[u.Player.One.keyScheme(status).moveRight] = false;
+    status.keysList[u.Player.Two.keyScheme(status).thrust] = false;
+    status.keysList[u.Player.Two.keyScheme(status).fire] = false;
+    status.keysList[u.Player.Two.keyScheme(status).moveLeft] = false;
+    status.keysList[u.Player.Two.keyScheme(status).moveRight] = false;
+}
+
 function startTheGame(c, g, imgList, status, u) {
+    document.getElementById("mainMenu").style.display = "none";
     g = new graphicalInfo(u);
     c = new makeContext(g);
     u.Player = new playerTypes(u);
-    u.Player.One.whoPlaying = brain1;
+    if (status.onePlayer === 0){
+        u.Player.Two.whoPlaying = brain2;
+    }
+    if (status.onePlayer <= 1){
+        u.Player.One.whoPlaying = brain1;
+    }
+    
 //    u.Player.One.vel = u.Player.One.vel.rot( Math.floor(Math.random() * 20)/20 * 2 * Math.PI);
     //u.Player.Two.whoPlaying = brain2;
     //u.mode = "Torus";
@@ -2718,23 +2748,24 @@ function showScore(c, g, status, u) {
 }
 
 function showMenu(c, g, imgList, status, u) {
+    document.getElementById("mainMenu").style.display = "";
     c.ctx.fillStyle = "black";
     c.ctx.fillRect(0,0,1000,1000);
     status.scene = "menu";
     getBackground(50, u);
     drawBackground(c, g, imgList, u);
     if (Math.floor(Math.random()*2) > 0) {
-        c.ctx.fillStyle = "turquoise";
+        document.getElementById("mainMenu").style.color = "turquoise";
     } else {
-        c.ctx.fillStyle = "yellow";
+        document.getElementById("mainMenu").style.color = "yellow";
     }
-    c.ctx.font = "100px Faster One";
-    c.ctx.textAlign = "center";
-    c.ctx.fillText("Cosmic", g.gameWidth/2, g.gameHeight/2-150);
-    c.ctx.fillText("Coconut!", g.gameWidth/2, g.gameHeight/2-20);
-    c.ctx.font = "30px Bungee Shade";
-    c.ctx.fillText("Press S to start", g.gameWidth/2, 3* g.gameHeight/4);
-    c.ctx.fillText("Press O for options", g.gameWidth/2, 3* g.gameHeight/4 + 70);
+//    c.ctx.font = "100px Faster One";
+//    c.ctx.textAlign = "center";
+//    c.ctx.fillText("Cosmic", g.gameWidth/2, g.gameHeight/2-150);
+//    c.ctx.fillText("Coconut!", g.gameWidth/2, g.gameHeight/2-20);
+//    c.ctx.font = "30px Bungee Shade";
+//    c.ctx.fillText("Press S to start", g.gameWidth/2, 3* g.gameHeight/4);
+//    c.ctx.fillText("Press O for options", g.gameWidth/2, 3* g.gameHeight/4 + 70);
     //c.ctx.fillText("Press C for credits", g.gameWidth/2, 3* g.gameHeight/4 + 100);
    // c.ctx.font = "20px Bungee Shade";
     //c.ctx.fillText("In nomin: Eva", g.gameWidth/2, 3* g.gameHeight/4+40);
@@ -2746,21 +2777,25 @@ function showMenu(c, g, imgList, status, u) {
 }
 
 function showOptions(c, g, imgList, status, u) {
+    document.getElementById("mainMenu").style.display = "none";
     c.ctx.fillStyle = "black";
     c.ctx.fillRect(0,0,1000,1000);
     status.scene = "options";
     getBackground(50, u);
     drawBackground(c, g, imgList, u);
-    c.ctx.fillStyle = "white";
-    c.ctx.font = "100px Faster One";
-    c.ctx.fillText("Options", g.gameWidth/2, 100);
-    c.ctx.font = "40px Bungee Shade";
-    c.ctx.textAlign = "left";
-    c.ctx.fillText("Controls", 30, 200);
-    c.ctx.font = "18px Bungee Shade";
-    c.ctx.textAlign = "center";
-    c.ctx.fillText("Press M to go back to menu", g.gameWidth/2, g.gameHeight - 50);
-    document.getElementById("controls").style.display = "table";
+//    c.ctx.fillStyle = "white";
+//    c.ctx.font = "100px Faster One";
+//    c.ctx.fillText("Options", g.gameWidth/2, 100);
+//    c.ctx.font = "40px Bungee Shade";
+//    c.ctx.textAlign = "left";
+//    c.ctx.fillText("Controls", 30, 200);
+//    c.ctx.font = "18px Bungee Shade";
+//    c.ctx.textAlign = "center";
+//    c.ctx.fillText("Press M to go back to menu", g.gameWidth/2, g.gameHeight - 50);
+    document.getElementById("options").style.display = "block";
+    document.getElementById("options").style.top = g.vOffset.toString() + "px";
+    document.getElementById("options").style.left = g.hOffset.toString()+ "px";
+    makeWeaponsTable(imgList, status);
     showControlButtons(status);
 }
 
@@ -2932,19 +2967,70 @@ function unPause(c, g, imgList, status, u) {
     playAnim(c, g, imgList, status, u);
 }
 
+function mainMenuListeners(c, g, imgList, status, u){                                 
+    document.getElementById("1PlayerStart").addEventListener("click", function (e) {
+        if (e.shiftKey){
+            status.onePlayer = 0;
+        } else {
+            status.onePlayer = 1;
+        }
+        startTheGame(c, g, imgList, status, u);
+    });                                 
+    document.getElementById("2PlayerStart").addEventListener("click", function () {
+        status.onePlayer = 2;
+        startTheGame(c, g, imgList, status, u);
+    });                                 
+    document.getElementById("openOptions").addEventListener("click", function () {
+        showOptions(c, g, imgList, status, u);
+    });
+}
+
+function makeWeaponsTable(imgList, status){
+    let wTable = document.getElementById("weaponsTable");
+    if (wTable.children.length === 0){
+        for (let i in status.weaponTypes){
+            let w = status.weaponTypes[i];
+            let newRow = document.createElement("TR");
+            newRow.innerHTML = [
+                    "<td>",
+                    "<img class=\"weaponIcon\" src=\""+imgList[w.src].src +"\"/>",
+                    "</td>",
+                    "<td>",
+                    "<label class=\"switch\">",
+                    "<input type=\"checkbox\" id=\""+w.type+"Switch\">",
+                    "<span class=\"slider round\"></span>",
+                    "</label>",
+                    "</td>"].join("\n");
+            wTable.appendChild(newRow);
+            document.getElementById(w.type+"Switch").onclick = toggleWeapon(w);
+        }
+    }
+    for (let w in status.weaponTypes){
+        document.getElementById(status.weaponTypes[w].type+"Switch").checked = status.weaponTypes[w].exists;
+    }
+}
+
+
+function toggleWeapon(w){
+    return function(){
+                w.exists = document.getElementById(w.type+"Switch").checked;
+            };
+}
+
 function finishLoading() {
     //console.log("Loaded");
     document.getElementById("LoadingMessage").style.color = "#000033";
     var status = new gameStatus();
     var imgList = new getImages();
-    var u = new universeInfo();
+    var u = new universeInfo(status);
     var g = new graphicalInfo(u);
     var c = new makeContext(g);
     //symmetricControls(status); ////Remove this
     c.area.style.display = "inline";
     setKeyListeners(c, g, imgList, status, u);
     showMenu(c, g, imgList, status, u);
-    controlsClickingListeners(status);
+    controlsClickingListeners(status); 
+    mainMenuListeners(c, g, imgList, status, u);
 }
 
 function sleep(ms) {
