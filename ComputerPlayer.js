@@ -216,9 +216,9 @@ network.prototype.activate = function(inputArray){
 
 function playGame(brain1, brain2, options){
     options.onePlayer = options.onePlayer || false;
-    var u = new universeInfo();
-    u.explosionLength = 0;
     var status = new gameStatus();
+    var u = new universeInfo(status);
+    u.explosionLength = 0;
     u.Player = new playerTypes(u);
     u.Player.One.whoPlaying = brain1;
     if (options.onePlayer){
@@ -358,6 +358,50 @@ function playTournament(A, gameNumber, options){//A is an array of networks, num
     }
 }
 
+function playElimination(A, gameNumber, options){
+    var playerNumber = A.length;
+    let indicesLeft = randomPermutation(playerNumber);
+    let roundCount = 0;
+    let results = Array(playerNumber);
+    let tieCount = 0;
+    while (indicesLeft.length > 1 && tieCount < 10){
+        let gameCount = indicesLeft.length - 2;
+        let startingSurvivors = indicesLeft.length;
+        while (gameCount >= 0){
+            //console.log("Game between "+indicesLeft[gameCount]+" and "+indicesLeft[gameCount + 1]);
+            let gameScore = 0;
+            for (let nthGame = 0; nthGame < gameNumber; nthGame++){
+                gameScore += playGame(A[indicesLeft[gameCount]], A[indicesLeft[gameCount + 1]],{onePlayer:false});
+                gameScore -= playGame(A[indicesLeft[gameCount + 1]], A[indicesLeft[gameCount]],{onePlayer:false});
+            }
+            //console.log(roundCount);
+            if (gameScore > 0){
+                //console.log(indicesLeft[gameCount] + " eliminated.");
+                results[indicesLeft[gameCount]] = roundCount;
+                indicesLeft.splice(gameCount, 1);
+            } else if (gameScore < 0){
+                //console.log(indicesLeft[gameCount + 1] + " eliminated.");
+                results[indicesLeft[gameCount + 1]] = roundCount;
+                indicesLeft.splice(gameCount + 1, 1);
+            }
+            gameCount -= 2;
+        }
+        roundCount += 1;
+        console.log("Number of survivors: "+indicesLeft.length);
+        if (indicesLeft.length === startingSurvivors) {
+            tieCount++;
+        } else {
+            tieCount = 0;
+        }
+        indicesLeft = shuffleArray(indicesLeft);
+    }
+    console.log("Winner is "+indicesLeft[0]);
+    for (let survivors in indicesLeft){
+        results[indicesLeft[survivors]] = roundCount;
+    }
+    return results;
+}
+
 function improveSpecies(A, nGames, learningRate, options){
     var playerNumber = A.length;
     options.onePlayer = options.onePlayer || false;
@@ -410,12 +454,29 @@ function improveSpecies(A, nGames, learningRate, options){
     return B;
 }
 
+function randomPermutation(n){
+    let aList = [];
+    for (let number = 0; number < n; number++){
+        aList.push(number);
+    }
+    let orderingArray = aList.map(x => Math.random());
+    return aList.sort((a,b) => orderingArray[b] - orderingArray[a]);
+}
+
+function shuffleArray(aList){
+    let S = randomPermutation(aList.length);
+    return S.map(i => aList[S[i]]);
+}
+
 function improveSpeciesGenetic(A, nGames, learningRate, options){
     var playerNumber = A.length;
     options.onePlayer = options.onePlayer || false;
+    options.elimination = options.elimination || false;
     var score;
     if (options.onePlayer){
         score = playTournamentOnePlayer(A, nGames, options);
+    } else if (options.elimination){
+        score = playElimination(A, nGames, options);
     } else {
         score = playTournament(A, nGames, options);
     }
@@ -427,8 +488,10 @@ function improveSpeciesGenetic(A, nGames, learningRate, options){
     }
     //console.log("Highest score: "+score[indices[0]]/ nGames);
     //console.log("Lowest surviving score: "+score[indices[options.survivors - 1]]/ nGames);
-    console.log("Scores:");
-    console.log(score);
+    if (!options.elimination){
+        console.log("Scores:");
+        console.log(score);
+    }
 //    console.log("Indices before sort:");
 //    console.log(indices);
     indices.sort( (a,b) => (score[b] - score[a])|| (a-b)); //HOLY SHIT THE SORT ALGORITHM IS SUPER WEIRD AND IT WILL CHOOSE A STRANGE ORDERING IF THE COMPARISON GIVES 0
@@ -437,9 +500,17 @@ function improveSpeciesGenetic(A, nGames, learningRate, options){
     var B = [];
     for (contestant = 0; contestant < options.survivors; contestant++){
         B.push(A[indices[contestant]]);
-        console.log((contestant + 1)+ordinalSuffix(contestant + 1) + " best score: "+(score[indices[contestant]] / nGames / playerNumber / 4).toFixed(2) + ". Number: "+(indices[contestant]+1));
+        if (options.elimination){
+            console.log((contestant + 1)+ordinalSuffix(contestant + 1) + " best score: "+score[indices[contestant]] + ". Number: "+(indices[contestant]+1));
+        } else {
+            console.log((contestant + 1)+ordinalSuffix(contestant + 1) + " best score: "+score[indices[contestant]]  + ". Number: "+(indices[contestant]+1));
+        }
     }for (contestant = 0; contestant < options.survivors; contestant++){
-        console.log("Score of previous #"+(contestant + 1)+": "+(score[contestant] / nGames / playerNumber / 4).toFixed(2));
+        if (options.elimination){
+            console.log("Score of previous #"+(contestant + 1)+": "+score[contestant]);
+        } else {
+            console.log("Score of previous #"+(contestant + 1)+": "+score[contestant]);
+        }
     }
     
     B.push(A[Math.floor(Math.random() * playerNumber)]); //Add one more randomly
@@ -652,7 +723,7 @@ function trainingSequence(){
     //var B = [startingBrain];
     //
 
-    var A = makeAGoodBrain(30, 2, 100, 0.01, {consoleInterval:1,
+    var A = makeAGoodBrain(100, 5, 50, 0.001, {consoleInterval:1,
                                                 writeInterval:10,
                                                 random:false,
                                                 onePlayer:false,
@@ -660,7 +731,9 @@ function trainingSequence(){
                                                 survivors: 5,
                                                 mutatedPercent:0.5,
                                                 seed:null,
-                                                return:5});
+                                                return:5,
+                                                elimination:true,
+                                             });
     
 //(nPlayers, nGames, nIterations, learningRate, options)options = {consoleInterval:interations, writeInterval:In minutes, seed:another array, survivors:number of survivors each generation, mutatedPercent:how many children get mutations, genetic: true or false, return:how many brains to return}
 
